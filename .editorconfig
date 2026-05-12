@@ -1,0 +1,47 @@
+# EditorConfig - 跨编辑器/IDE 统一代码格式
+# https://editorconfig.org
+
+# 顶层配置
+root = true
+
+# ==================== 通用默认配置 ====================
+[*]
+charset = UTF-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# ==================== Java 源码 ====================
+[*.java]
+indent_size = 4
+tab_width = 4
+
+# ==================== XML / Maven POM ====================
+[*.{xml,xsd}]
+indent_size = 4
+
+# ==================== YAML ====================
+[*.{yml,yaml}]
+indent_size = 2
+
+# ==================== JSON ====================
+[*.json]
+indent_size = 2
+
+# ==================== Markdown ====================
+[*.md]
+trim_trailing_whitespace = false
+
+# ==================== Shell 脚本 ====================
+[*.sh]
+indent_size = 4
+
+# ==================== Properties 文件 ====================
+[*.properties]
+indent_size = 4
+
+# ==================== .gitignore ====================
+[.gitignore]
+indent_size = 4

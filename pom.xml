@@ -26,6 +26,12 @@
         <!-- 依赖版本 -->
         <junit.version>5.10.3</junit.version>
         <slf4j.version>2.0.13</slf4j.version>
+
+        <!-- 插件版本 -->
+        <maven-checkstyle-plugin.version>3.3.1</maven-checkstyle-plugin.version>
+        <maven-spotbugs-plugin.version>4.8.5.0</maven-spotbugs-plugin.version>
+        <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
+        <spotbugs.version>4.8.6</spotbugs.version>
     </properties>
 
     <dependencyManagement>
@@ -80,7 +86,120 @@
                     <artifactId>maven-source-plugin</artifactId>
                     <version>3.3.1</version>
                 </plugin>
+
+                <!-- Checkstyle 代码风格检查 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${maven-checkstyle-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>10.15.0</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <configLocation>checkstyle.xml</configLocation>
+                        <suppressionsLocation>checkstyle-suppressions.xml</suppressionsLocation>
+                        <consoleOutput>true</consoleOutput>
+                        <failOnViolation>true</failOnViolation>
+                        <violationSeverity>warning</violationSeverity>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                        <encoding>UTF-8</encoding>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>checkstyle-check</id>
+                            <phase>validate</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- SpotBugs 静态代码分析 -->
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${maven-spotbugs-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.github.spotbugs</groupId>
+                            <artifactId>spotbugs</artifactId>
+                            <version>${spotbugs.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <effort>Max</effort>
+                        <threshold>Medium</threshold>
+                        <xmlOutput>true</xmlOutput>
+                        <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+                        <includeTests>true</includeTests>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>spotbugs-check</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
+
+        <!-- 全局绑定的插件（所有模块生效） -->
+        <plugins>
+            <!-- Maven Enforcer 构建约束 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- 强制 JDK 版本 -->
+                                <requireJavaVersion>
+                                    <version>[21,)</version>
+                                    <message>本项目需要 JDK 21 或更高版本</message>
+                                </requireJavaVersion>
+
+                                <!-- 强制 Maven 版本 -->
+                                <requireMavenVersion>
+                                    <version>[3.9.0,)</version>
+                                    <message>本项目需要 Maven 3.9.0 或更高版本</message>
+                                </requireMavenVersion>
+
+                                <!-- 禁止依赖冲突 -->
+                                <banDuplicatePomDependencyVersions/>
+
+                                <!-- 禁止快照依赖（release 阶段） -->
+                                <requireReleaseDeps>
+                                    <message>发布版本不允许使用 SNAPSHOT 依赖</message>
+                                    <onlyWhenRelease>true</onlyWhenRelease>
+                                </requireReleaseDeps>
+
+                                <!-- 禁止使用过时的 API -->
+                                <banDuplicateClasses>
+                                    <findAllDuplicates>true</findAllDuplicates>
+                                </banDuplicateClasses>
+
+                                <!-- 确保多模块项目的关系正确 -->
+                                <reactorModuleConvergence/>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

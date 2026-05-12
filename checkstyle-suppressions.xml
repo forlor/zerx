@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionXpathFilter Element 1.0//EN"
+        "https://checkstyle.org/dtds/suppressions_1_0.dtd">
+
+<!--
+    Checkstyle 豁免规则
+    对于特定文件/类/方法可以在此豁免某些检查
+-->
+
+<suppressions>
+
+    <!-- 豁免测试代码的部分检查 -->
+    <suppress files=".*Test\.java" checks="JavadocMethod"/>
+    <suppress files=".*Test\.java" checks="MagicNumber"/>
+    <suppress files=".*Test\.java" checks="MethodLength"/>
+
+    <!-- 豁免 Javadoc 中的 HTML 标签检查（中文文档中常用简单标签） -->
+    <suppress checks="NonEmptyAtclauseDescription" files=".*\.java"/>
+
+    <!-- 豁免常量类中的魔法数字（如掩码、标志位） -->
+    <suppress files=".*Constant.*\.java" checks="MagicNumber"/>
+
+    <!-- 豁免 Record 类的 Javadoc 要求 -->
+    <suppress files=".*\.java" checks="MissingJavadocType">
+        <property name="tokens" value="RECORD_DEF"/>
+    </suppress>
+
+</suppressions>

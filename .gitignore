@@ -1,24 +1,89 @@
-# Maven
+# ==================== Maven ====================
 target/
+!.mvn/wrapper/maven-wrapper.jar
 *.jar
 *.war
 *.ear
-*.class
+*.nar
+*.hs_err_pid*
+replay_pid*
 
-# IDE
+# ==================== 构建输出 ====================
+build/
+out/
+classes/
+generated-sources/
+generated-test-sources/
+
+# ==================== IDE - IntelliJ IDEA ====================
 .idea/
+*.iws
 *.iml
+*.ipr
+.idea_modules/
+
+# ==================== IDE - Eclipse ====================
 .settings/
 .project
 .classpath
+.apt_generated
+.apt_generated_tests
+.factorypath
+.sts4-cache
+*.launch
+.metadata/
+
+# ==================== IDE - VS Code ====================
 .vscode/
+*.code-workspace
+
+# ==================== IDE - NetBeans ====================
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# ==================== 操作系统 ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Thumbs.db?
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ==================== 日志文件 ====================
+*.log
+logs/
+
+# ==================== 环境变量 / 密钥 ====================
+*.env
+*.env.*
+!.env.example
+application-local.yml
+application-local.properties
+
+# ==================== 包管理 ====================
+node_modules/
+.npm
+.yarn
+
+# ==================== 临时文件 ====================
+*.tmp
+*.bak
 *.swp
 *.swo
 *~
+*.orig
+.cache/
 
-# OS
-.DS_Store
-Thumbs.db
+# ==================== SpotBugs ====================
+spotbugsXml.xml
 
-# Env
-*.env
+# ==================== Checkstyle ====================
+checkstyle-result.xml
+checkstyle-errors.xml
