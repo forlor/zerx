@@ -26,6 +26,7 @@
         <!-- 依赖版本 -->
         <junit.version>5.10.3</junit.version>
         <slf4j.version>2.0.13</slf4j.version>
+        <archunit.version>1.3.0</archunit.version>
 
         <!-- 插件版本 -->
         <maven-checkstyle-plugin.version>3.3.1</maven-checkstyle-plugin.version>
@@ -56,6 +57,29 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
+            </dependency>
+
+            <!-- 架构测试 -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Zerx 内部模块 -->
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-architecture-test</artifactId>
+                <version>${zerx.version}</version>
+                <type>test-jar</type>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

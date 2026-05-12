@@ -18,5 +18,6 @@
 
     <modules>
         <module>zerx-common</module>
+        <module>zerx-architecture-test</module>
     </modules>
 </project>
