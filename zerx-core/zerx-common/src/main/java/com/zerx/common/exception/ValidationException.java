@@ -53,21 +53,10 @@ public class ValidationException extends ZerxException {
     }
 
     /**
-     * 使用预定义错误码和字段名构造
+     * 使用预定义错误码、自定义消息和字段名构造
      * <p>
      * 字段名用于精确定位校验失败的具体参数，便于前端定位展示错误信息。
      * </p>
-     *
-     * @param errorCode 错误码
-     * @param field     引起校验失败的字段名
-     */
-    public ValidationException(ErrorCode errorCode, String field) {
-        super(errorCode, errorCode.message() + ": " + field);
-        this.field = field;
-    }
-
-    /**
-     * 使用预定义错误码、自定义消息和字段名构造
      *
      * @param errorCode 错误码
      * @param message   自定义异常消息
