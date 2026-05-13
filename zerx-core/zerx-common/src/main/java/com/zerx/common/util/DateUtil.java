@@ -38,9 +38,6 @@ public final class DateUtil {
     /** 紧凑日期时间格式：yyyyMMddHHmmss */
     public static final String PATTERN_COMPACT_DATETIME = "yyyyMMddHHmmss";
 
-    /** ISO 日期格式 */
-    public static final String PATTERN_ISO_DATE = "yyyy-MM-dd";
-
     /** ISO 日期时间格式 */
     public static final String PATTERN_ISO_DATETIME = "yyyy-MM-dd'T'HH:mm:ss";
 
@@ -57,6 +54,9 @@ public final class DateUtil {
 
     /** 带毫秒的日期时间格式化器（线程安全） */
     public static final DateTimeFormatter DATETIME_MS_FORMATTER = DateTimeFormatter.ofPattern(PATTERN_DATETIME_MS);
+
+    /** ISO 日期时间格式化器（线程安全） */
+    public static final DateTimeFormatter ISO_DATETIME_FORMATTER = DateTimeFormatter.ofPattern(PATTERN_ISO_DATETIME);
 
     /** 紧凑日期格式化器（线程安全） */
     public static final DateTimeFormatter COMPACT_DATE_FORMATTER = DateTimeFormatter.ofPattern(PATTERN_COMPACT_DATE);

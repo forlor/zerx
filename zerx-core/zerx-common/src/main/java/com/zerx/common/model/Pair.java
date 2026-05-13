@@ -2,7 +2,6 @@ package com.zerx.common.model;
 
 import java.io.Serializable;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * 二元组（Pair）
@@ -111,6 +110,16 @@ public record Pair<L, R>(L left, R right) implements Serializable {
             @Override
             public R setValue(R value) {
                 throw new UnsupportedOperationException("Pair 不支持修改值");
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                return Pair.this.equals(o);
+            }
+
+            @Override
+            public int hashCode() {
+                return Pair.this.hashCode();
             }
         };
     }

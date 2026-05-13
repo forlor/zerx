@@ -73,12 +73,6 @@ public final class CommonConstant {
     /** 默认字符集名称 */
     public static final String DEFAULT_CHARSET = "UTF-8";
 
-    /** 默认日期格式 */
-    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
-
-    /** 默认日期时间格式 */
-    public static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
-
     /** 默认排序字段 */
     public static final String DEFAULT_SORT_FIELD = "createTime";
 

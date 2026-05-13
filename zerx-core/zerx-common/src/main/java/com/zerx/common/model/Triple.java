@@ -1,7 +1,6 @@
 package com.zerx.common.model;
 
 import java.io.Serializable;
-import java.util.Objects;
 
 /**
  * 三元组（Triple）

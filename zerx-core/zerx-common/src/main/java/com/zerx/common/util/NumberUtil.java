@@ -1,7 +1,6 @@
 package com.zerx.common.util;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -164,9 +163,9 @@ public final class NumberUtil {
      * @return a + b
      */
     public static BigDecimal add(BigDecimal a, BigDecimal b) {
-        if (a == null) a = BigDecimal.ZERO;
-        if (b == null) b = BigDecimal.ZERO;
-        return a.add(b);
+        BigDecimal left = (a != null) ? a : BigDecimal.ZERO;
+        BigDecimal right = (b != null) ? b : BigDecimal.ZERO;
+        return left.add(right);
     }
 
     /**
@@ -177,9 +176,9 @@ public final class NumberUtil {
      * @return a - b
      */
     public static BigDecimal subtract(BigDecimal a, BigDecimal b) {
-        if (a == null) a = BigDecimal.ZERO;
-        if (b == null) b = BigDecimal.ZERO;
-        return a.subtract(b);
+        BigDecimal left = (a != null) ? a : BigDecimal.ZERO;
+        BigDecimal right = (b != null) ? b : BigDecimal.ZERO;
+        return left.subtract(right);
     }
 
     /**

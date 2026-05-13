@@ -350,7 +350,7 @@ public final class EnumUtil {
      * @param <E>       枚举类型
      * @return 包含返回 true
      */
-    public static <E extends Enum<E>> boolean contains(Class<E> enumClass, String name) {
+    public static <E extends Enum<E>> boolean containsName(Class<E> enumClass, String name) {
         return findByName(enumClass, name) != null;
     }
 }

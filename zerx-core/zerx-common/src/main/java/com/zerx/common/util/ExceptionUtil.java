@@ -1,6 +1,5 @@
 package com.zerx.common.util;
 
-import com.zerx.common.exception.BusinessException;
 import com.zerx.common.exception.ErrorCode;
 import com.zerx.common.exception.ZerxException;
 
