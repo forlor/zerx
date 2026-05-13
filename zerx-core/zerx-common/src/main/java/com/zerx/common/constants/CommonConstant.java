@@ -79,15 +79,6 @@ public final class CommonConstant {
     /** 默认日期时间格式 */
     public static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
-    /** 默认分页页码 */
-    public static final int DEFAULT_PAGE = 1;
-
-    /** 默认每页大小 */
-    public static final int DEFAULT_PAGE_SIZE = 10;
-
-    /** 每页最大记录数 */
-    public static final int MAX_PAGE_SIZE = 200;
-
     /** 默认排序字段 */
     public static final String DEFAULT_SORT_FIELD = "createTime";
 

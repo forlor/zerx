@@ -1,6 +1,6 @@
 package com.zerx.common.model;
 
-import com.zerx.common.enums.ResponseCode;
+import com.zerx.common.exception.ErrorCode;
 
 import java.io.Serializable;
 
@@ -30,7 +30,7 @@ public record Result<T>(boolean success, String code, String message, T data) im
      * @return 成功的响应结果
      */
     public static <T> Result<T> ok(T data) {
-        return new Result<>(true, ResponseCode.SUCCESS.code(), ResponseCode.SUCCESS.message(), data);
+        return new Result<>(true, ErrorCode.SUCCESS.code(), ErrorCode.SUCCESS.message(), data);
     }
 
     /**
@@ -52,18 +52,18 @@ public record Result<T>(boolean success, String code, String message, T data) im
      * @return 成功的响应结果
      */
     public static <T> Result<T> ok(String message, T data) {
-        return new Result<>(true, ResponseCode.SUCCESS.code(), message, data);
+        return new Result<>(true, ErrorCode.SUCCESS.code(), message, data);
     }
 
     /**
-     * 失败响应（指定响应码）
+     * 失败响应（指定错误码）
      *
-     * @param responseCode 响应码枚举
-     * @param <T>          业务数据类型
+     * @param errorCode 错误码枚举
+     * @param <T>       业务数据类型
      * @return 失败的响应结果
      */
-    public static <T> Result<T> fail(ResponseCode responseCode) {
-        return new Result<>(false, responseCode.code(), responseCode.message(), null);
+    public static <T> Result<T> fail(ErrorCode errorCode) {
+        return new Result<>(false, errorCode.code(), errorCode.message(), null);
     }
 
     /**
@@ -79,15 +79,15 @@ public record Result<T>(boolean success, String code, String message, T data) im
     }
 
     /**
-     * 失败响应（指定响应码和自定义消息）
+     * 失败响应（指定错误码和自定义消息）
      *
-     * @param responseCode 响应码枚举
-     * @param message      自定义描述信息
-     * @param <T>          业务数据类型
+     * @param errorCode 错误码枚举
+     * @param message   自定义描述信息
+     * @param <T>       业务数据类型
      * @return 失败的响应结果
      */
-    public static <T> Result<T> fail(ResponseCode responseCode, String message) {
-        return new Result<>(false, responseCode.code(), message, null);
+    public static <T> Result<T> fail(ErrorCode errorCode, String message) {
+        return new Result<>(false, errorCode.code(), message, null);
     }
 
     /**

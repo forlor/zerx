@@ -46,11 +46,11 @@ zerx/
 │   ├── zerx-common/                    #   通用工具 + 异常体系 + 基础类型
 │   │   └── src/main/java/com/zerx/common/
 │   │       ├── constants/              #     全局常量
-│   │       ├── enums/                  #     基础枚举（BaseEnum、ErrorCode、ResponseCode）
-│   │       ├── exception/              #     统一异常体系（ZerxException + 5 个子类）
+│   │       ├── enums/                  #     基础枚举（BaseEnum）
+│   │       ├── exception/              #     统一异常体系（ZerxException + 5 子类 + ErrorCode 枚举）
 │   │       ├── functional/             #     Throwable 函数式接口（4 个）
 │   │       ├── model/                  #     通用模型（Result、PageRequest、Pair、Triple 等）
-│   │       └── util/                   #     工具类（StringUtil、CollectionUtil、DateUtil 等 11 个）
+│   │       └── util/                   #     工具类（StringUtil、CollectionUtil、DateUtil 等 12 个）
 │   ├── zerx-architecture-test/         #   ArchUnit 架构规则测试（12 条规则，打包为 test-jar）
 │   ├── zerx-logging/                   #   日志封装（规划中）
 │   └── zerx-core-bom/                  #   核心层 BOM（规划中）
@@ -128,6 +128,7 @@ mvn clean install
 | `EnumUtil` | 枚举工具：按 code/description 查找、toMap、toOptions（配合 BaseEnum） |
 | `SensitiveDataUtil` | 数据脱敏：手机号、邮箱、身份证、银行卡、姓名、密码、IP 地址 |
 | `ExceptionUtil` | 异常工具：堆栈提取、根因分析、异常链遍历 |
+| `SystemUtil` | 系统环境：OS 判断、JDK 版本、JVM 内存、系统路径、主机信息 |
 
 **异常体系（exception）**
 

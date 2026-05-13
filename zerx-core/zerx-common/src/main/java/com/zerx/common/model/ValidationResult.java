@@ -1,5 +1,7 @@
 package com.zerx.common.model;
 
+import com.zerx.common.exception.ValidationException;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -331,13 +333,14 @@ public class ValidationResult implements Serializable {
     }
 
     /**
-     * 如果存在错误则抛出 IllegalArgumentException
+     * 如果存在错误则抛出 ValidationException
      *
-     * @throws IllegalArgumentException 有校验错误时抛出
+     * @throws ValidationException 有校验错误时抛出
      */
     public void throwIfInvalid() {
         if (hasErrors()) {
-            throw new IllegalArgumentException(joinErrors("; "));
+            throw new ValidationException(
+                    com.zerx.common.exception.ErrorCode.PARAM_FORMAT_ERROR, joinErrors("; "));
         }
     }
 
