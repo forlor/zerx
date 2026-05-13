@@ -400,8 +400,8 @@ public final class CollectionUtil {
         }
         int toIndex = Math.min(fromIndex + size, collection.size());
         if (collection instanceof List<T> list) {
-            return list.subList(fromIndex, toIndex);
+            return List.copyOf(list.subList(fromIndex, toIndex));
         }
-        return new ArrayList<>(collection).subList(fromIndex, toIndex);
+        return List.copyOf(new ArrayList<>(collection).subList(fromIndex, toIndex));
     }
 }

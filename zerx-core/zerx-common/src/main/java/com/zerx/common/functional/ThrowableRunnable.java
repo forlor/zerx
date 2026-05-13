@@ -86,8 +86,10 @@ public interface ThrowableRunnable {
     static void silent(ThrowableRunnable runnable) {
         try {
             runnable.run();
+        } catch (Error e) {
+            throw e; // Error（如 OutOfMemoryError）不应被吞掉
         } catch (Throwable ignored) {
-            // 静默忽略
+            // 静默忽略受检异常和 RuntimeException
         }
     }
 
@@ -119,9 +121,13 @@ public interface ThrowableRunnable {
     static void withFallback(ThrowableRunnable runnable, ThrowableRunnable fallback) {
         try {
             runnable.run();
+        } catch (Error e) {
+            throw e; // Error 不应被吞掉
         } catch (Throwable e) {
             try {
                 fallback.run();
+            } catch (Error e2) {
+                throw e2; // fallback 中的 Error 也不应被吞掉
             } catch (Throwable ignored) {
                 // fallback 也失败，静默处理
             }

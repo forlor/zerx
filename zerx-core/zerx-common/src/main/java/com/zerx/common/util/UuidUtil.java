@@ -59,11 +59,11 @@ public final class UuidUtil {
     /** 普通随机数生成器，性能更高但安全性较低 */
     private static final java.util.Random RANDOM = new java.util.Random();
 
-    /** 上一次生成的时间戳，用于同一毫秒内递增处理 */
-    private static volatile long lastTimestamp = -1L;
+    /** 上一次生成的时间戳，用于同一毫秒内递增处理（仅在 synchronized 方法内访问） */
+    private static long lastTimestamp = -1L;
 
-    /** 同一毫秒内的递增计数器（12 位） */
-    private static volatile int counter = 0;
+    /** 同一毫秒内的递增计数器（12 位，仅在 synchronized 方法内访问） */
+    private static int counter = 0;
 
     /** 计数器最大值（12 位 = 4095） */
     private static final int MAX_COUNTER = 0x0FFF;
@@ -313,6 +313,7 @@ public final class UuidUtil {
     private static void waitNextMillis(long lastTimestamp) {
         long timestamp = currentTimestampMillis();
         while (timestamp <= lastTimestamp) {
+            Thread.onSpinWait();
             timestamp = currentTimestampMillis();
         }
     }
