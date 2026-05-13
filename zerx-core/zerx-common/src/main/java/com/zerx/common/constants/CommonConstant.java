@@ -24,12 +24,6 @@ public final class CommonConstant {
     /** 否（字符串形式 "false"） */
     public static final String FALSE = "false";
 
-    /** 数字是（1） */
-    public static final Integer YES = 1;
-
-    /** 数字否（0） */
-    public static final Integer NO = 0;
-
     // ======================== 分隔符 ========================
 
     /** 逗号分隔符 */
@@ -89,18 +83,6 @@ public final class CommonConstant {
 
     /** 默认排序序号 */
     public static final Integer DEFAULT_SORT_ORDER = 0;
-
-    /** 逻辑删除标记：已删除 */
-    public static final Integer DELETED = 1;
-
-    /** 逻辑删除标记：未删除 */
-    public static final Integer NOT_DELETED = 0;
-
-    /** 启用状态 */
-    public static final Integer STATUS_ENABLED = 1;
-
-    /** 禁用状态 */
-    public static final Integer STATUS_DISABLED = 0;
 
     /** 成功状态 */
     public static final Integer STATUS_SUCCESS = 1;
