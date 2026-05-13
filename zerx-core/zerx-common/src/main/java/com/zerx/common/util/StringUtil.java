@@ -23,6 +23,15 @@ public final class StringUtil {
     private static final Pattern INVISIBLE_CHAR_PATTERN =
             Pattern.compile("[\\u200B\\u200C\\u200D\\uFEFF\\u00AD]");
 
+    /** 中国大陆手机号正则 */
+    private static final Pattern MOBILE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+
+    /** 邮箱地址正则 */
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+
+    /** 纯中文字符正则 */
+    private static final Pattern CHINESE_PATTERN = Pattern.compile("^[\\u4e00-\\u9fa5]+$");
+
     /** 私有构造器，防止实例化 */
     private StringUtil() {
         throw new UnsupportedOperationException("工具类不允许实例化");
@@ -305,7 +314,7 @@ public final class StringUtil {
         if (isEmpty(str)) {
             return false;
         }
-        return matches(str.trim(), "^[\u4e00-\u9fa5]+$");
+        return CHINESE_PATTERN.matcher(str.trim()).matches();
     }
 
     /**
@@ -315,7 +324,7 @@ public final class StringUtil {
      * @return 符合手机号格式返回 true
      */
     public static boolean isMobile(String str) {
-        return isNotBlank(str) && matches(str.trim(), "^1[3-9]\\d{9}$");
+        return isNotBlank(str) && MOBILE_PATTERN.matcher(str.trim()).matches();
     }
 
     /**
@@ -325,8 +334,7 @@ public final class StringUtil {
      * @return 符合邮箱格式返回 true
      */
     public static boolean isEmail(String str) {
-        return isNotBlank(str) && matches(str.trim(),
-                "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+        return isNotBlank(str) && EMAIL_PATTERN.matcher(str.trim()).matches();
     }
 
     // ======================== 编码转换 ========================

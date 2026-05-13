@@ -122,8 +122,11 @@ public class LruCache<K, V> {
      * @return 缓存的值或默认值
      */
     public V getOrDefault(K key, V defaultValue) {
-        V value = get(key);
-        return value != null ? value : defaultValue;
+        if (containsKey(key)) {
+            hitCount++;
+            return store.get(key);
+        }
+        return defaultValue;
     }
 
     /**

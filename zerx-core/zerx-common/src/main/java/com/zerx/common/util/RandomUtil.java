@@ -1,6 +1,7 @@
 package com.zerx.common.util;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -34,6 +35,9 @@ public final class RandomUtil {
 
     /** 十六进制字符集（小写） */
     private static final String HEX_CHARS = "0123456789abcdef";
+
+    /** 密码学安全随机数生成器（全局单例，避免重复创建） */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /** 私有构造器，防止实例化 */
     private RandomUtil() {
@@ -135,7 +139,7 @@ public final class RandomUtil {
      * @return 密码学安全的随机 int 值
      */
     public static int secureRandomInt() {
-        return new SecureRandom().nextInt();
+        return SECURE_RANDOM.nextInt();
     }
 
     /**
@@ -150,7 +154,7 @@ public final class RandomUtil {
         if (min > max) {
             throw new IllegalArgumentException("最小值不能大于最大值: min=" + min + ", max=" + max);
         }
-        return min + new SecureRandom().nextInt(max - min + 1);
+        return min + SECURE_RANDOM.nextInt(max - min + 1);
     }
 
     /**
@@ -161,7 +165,7 @@ public final class RandomUtil {
      */
     public static byte[] secureRandomBytes(int length) {
         byte[] bytes = new byte[length];
-        new SecureRandom().nextBytes(bytes);
+        SECURE_RANDOM.nextBytes(bytes);
         return bytes;
     }
 
@@ -289,7 +293,7 @@ public final class RandomUtil {
         if (length == 0) {
             return StringUtil.EMPTY;
         }
-        SecureRandom random = new SecureRandom();
+        SecureRandom random = SECURE_RANDOM;
         StringBuilder sb = new StringBuilder(length);
         int sourceLength = source.length();
         for (int i = 0; i < length; i++) {
@@ -445,11 +449,11 @@ public final class RandomUtil {
             throw new IllegalArgumentException("验证码长度必须大于 0: " + length);
         }
         if (length == 1) {
-            return String.valueOf(new SecureRandom().nextInt(10));
+            return String.valueOf(SECURE_RANDOM.nextInt(10));
         }
         // 使用大范围随机 + 取模保证无前导零
         int min = (int) Math.pow(10, length - 1);
         int max = (int) Math.pow(10, length) - 1;
-        return String.valueOf(min + new SecureRandom().nextInt(max - min + 1));
+        return String.valueOf(min + SECURE_RANDOM.nextInt(max - min + 1));
     }
 }

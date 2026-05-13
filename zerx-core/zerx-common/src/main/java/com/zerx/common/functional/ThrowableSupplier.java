@@ -84,6 +84,8 @@ public interface ThrowableSupplier<T> {
     default T orElse(T defaultValue) {
         try {
             return get();
+        } catch (Error e) {
+            throw e; // Error 不应被吞掉
         } catch (Throwable e) {
             return defaultValue;
         }
@@ -98,6 +100,8 @@ public interface ThrowableSupplier<T> {
     default T orElseGet(Supplier<T> fallback) {
         try {
             return get();
+        } catch (Error e) {
+            throw e; // Error 不应被吞掉
         } catch (Throwable e) {
             return fallback.get();
         }
@@ -114,6 +118,8 @@ public interface ThrowableSupplier<T> {
     default <X extends RuntimeException> T orElseThrow(Supplier<X> exceptionSupplier) throws X {
         try {
             return get();
+        } catch (Error e) {
+            throw e; // Error 不应被吞掉
         } catch (Throwable e) {
             throw exceptionSupplier.get();
         }

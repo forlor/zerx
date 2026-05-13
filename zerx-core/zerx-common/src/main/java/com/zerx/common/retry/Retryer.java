@@ -319,8 +319,8 @@ public final class Retryer<T> {
          */
         public Retryer<T> build() {
             // 如果设置了 retryOn 异常类型，构建重试谓词
-            if (!retryOnExceptions.isEmpty() && retryPredicate == null) {
-                this.retryPredicate = e -> {
+            if (!retryOnExceptions.isEmpty()) {
+                Predicate<Exception> typePredicate = e -> {
                     for (Class<? extends Exception> type : retryOnExceptions) {
                         if (type.isInstance(e)) {
                             return true;
@@ -328,6 +328,12 @@ public final class Retryer<T> {
                     }
                     return false;
                 };
+                if (retryPredicate != null) {
+                    // 合并：满足异常类型过滤 OR 自定义条件
+                    this.retryPredicate = typePredicate.or(retryPredicate);
+                } else {
+                    this.retryPredicate = typePredicate;
+                }
             }
             return new Retryer<>(this);
         }

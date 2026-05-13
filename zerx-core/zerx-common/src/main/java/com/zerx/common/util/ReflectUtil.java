@@ -101,7 +101,7 @@ public final class ReflectUtil {
         try {
             field.setAccessible(true);
             return (T) field.get(obj);
-        } catch (IllegalAccessException e) {
+        } catch (Exception e) {
             return null;
         }
     }
@@ -126,7 +126,7 @@ public final class ReflectUtil {
             field.setAccessible(true);
             field.set(obj, value);
             return true;
-        } catch (IllegalAccessException e) {
+        } catch (Exception e) {
             return false;
         }
     }
