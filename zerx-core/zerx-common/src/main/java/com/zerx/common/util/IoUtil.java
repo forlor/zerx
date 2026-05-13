@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
+
 
 /**
  * IO 工具类
@@ -88,9 +88,7 @@ public final class IoUtil {
      */
     public static byte[] toBytes(InputStream input) throws IOException {
         try (input) {
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            copy(input, output);
-            return output.toByteArray();
+            return input.readAllBytes();
         }
     }
 
@@ -114,7 +112,7 @@ public final class IoUtil {
      * @throws IOException IO 异常时抛出
      */
     public static String toString(InputStream input, Charset charset) throws IOException {
-        try (input; InputStreamReader reader = new InputStreamReader(input, charset)) {
+        try (InputStreamReader reader = new InputStreamReader(input, charset)) {
             return toString(reader);
         }
     }

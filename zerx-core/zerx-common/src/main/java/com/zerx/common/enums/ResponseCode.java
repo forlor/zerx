@@ -1,5 +1,7 @@
 package com.zerx.common.enums;
 
+import java.io.Serializable;
+
 /**
  * 统一响应码枚举
  * <p>
@@ -17,7 +19,7 @@ package com.zerx.common.enums;
  * @param message    响应描述信息
  * @param httpStatus 对应的 HTTP 状态码
  */
-public enum ResponseCode {
+public enum ResponseCode implements BaseEnum<String> {
 
     // ======================== 成功 ========================
     SUCCESS("00000", "操作成功", 200),
@@ -77,5 +79,15 @@ public enum ResponseCode {
 
     public int httpStatus() {
         return httpStatus;
+    }
+
+    @Override
+    public String getCode() {
+        return code;
+    }
+
+    @Override
+    public String getDescription() {
+        return message;
     }
 }

@@ -82,13 +82,31 @@ public final class StringUtil {
     }
 
     /**
-     * 判断是否任一字符串不为空
+     * 判断是否任一字符串为空白
      *
      * @param strings 待判断的字符串数组
-     * @return 任一字符串不为空返回 true
+     * @return 任一字符串为空白返回 true，数组本身为 null 也返回 true
      */
     public static boolean isAnyBlank(String... strings) {
-        return !isAllBlank(strings);
+        if (strings == null) {
+            return true;
+        }
+        for (String str : strings) {
+            if (isBlank(str)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 判断是否所有字符串都不为空白
+     *
+     * @param strings 待判断的字符串数组
+     * @return 所有字符串都不为空白返回 true
+     */
+    public static boolean isNoneBlank(String... strings) {
+        return !isAnyBlank(strings);
     }
 
     // ======================== 裁剪与清理 ========================

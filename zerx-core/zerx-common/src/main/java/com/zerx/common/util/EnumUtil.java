@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
  * 枚举工具类
  * <p>
  * 提供枚举的通用操作方法，与 {@link BaseEnum} 接口配合使用。
-* 支持按 code 查找枚举、获取所有枚举值列表、转为 Map 等常用操作，
+ * 支持按 code 查找枚举、获取所有枚举值列表、转为 Map 等常用操作，
  * 减少业务代码中重复的枚举处理逻辑。
  * </p>
  *
@@ -343,13 +343,14 @@ public final class EnumUtil {
     }
 
     /**
-     * 判断枚举类是否包含指定值
+     * 判断枚举类是否包含指定名称的枚举值（忽略大小写）
      *
-     * @param value 枚举值
-     * @param <E>   枚举类型
+     * @param enumClass 枚举类
+     * @param name      枚举名称
+     * @param <E>       枚举类型
      * @return 包含返回 true
      */
-    public static <E extends Enum<E>> boolean contains(E value) {
-        return value != null;
+    public static <E extends Enum<E>> boolean contains(Class<E> enumClass, String name) {
+        return findByName(enumClass, name) != null;
     }
 }

@@ -1,7 +1,6 @@
 package com.zerx.common.model;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -43,9 +42,9 @@ public record PageRequest(int page, int size, List<OrderItem> orders) implements
             size = MAX_SIZE;
         }
         if (orders == null) {
-            orders = new ArrayList<>();
+            orders = List.of();
         } else {
-            orders = new ArrayList<>(orders); // 防御性拷贝，确保不可变
+            orders = List.copyOf(orders); // 防御性拷贝，返回不可变列表
         }
     }
 
