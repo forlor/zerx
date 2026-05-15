@@ -308,8 +308,9 @@ public class LruCache<K, V> {
     protected void evictIfNeeded() {
         while (store.size() > maxSize) {
             // LinkedHashMap 在 accessOrder=true 时，迭代器第一个元素就是最近最少使用的
-            var eldest = store.entrySet().iterator().next();
-            eldest.remove();
+            var iterator = store.entrySet().iterator();
+            iterator.next();
+            iterator.remove();
         }
     }
 

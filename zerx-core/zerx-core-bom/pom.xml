@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zerx</groupId>
+        <artifactId>zerx-parent</artifactId>
+        <version>${zerx.version}</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zerx-core-bom</artifactId>
+    <packaging>pom</packaging>
+    <name>Zerx Core BOM</name>
+    <description>Zerx Core Bill of Materials — 统一管理所有 core 模块及常用第三方库的版本号</description>
+
+    <properties>
+        <!-- Spring Boot 3.x（预留，Spring 模块启用时取消注释） -->
+        <!-- <spring-boot.version>3.3.5</spring-boot.version> -->
+
+        <!-- 常用第三方库版本（Spring 模块启用后迁移至此集中管理） -->
+        <!-- <mapstruct.version>1.6.3</mapstruct.version> -->
+        <!-- <mybatis-plus.version>3.5.9</mybatis-plus.version> -->
+        <!-- <hutool.version>5.8.34</hutool.version> -->
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- ======================== zerx 内部模块 ======================== -->
+
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-common</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-architecture-test</artifactId>
+                <version>${zerx.version}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <!-- ======================== Spring Boot BOM（预留） ======================== -->
+            <!--
+            后续创建 Spring Boot 模块时，取消以下注释以统一管理 Spring 生态版本：
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            -->
+        </dependencies>
+    </dependencyManagement>
+</project>

@@ -1,8 +1,10 @@
 package com.zerx.common.util;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -372,7 +374,7 @@ public final class RandomUtil {
      * @return 不重复随机整数列表
      * @throws IllegalArgumentException 当 count 大于范围可用数时抛出
      */
-    public static java.util.List<Integer> randomUniqueInts(int count, int min, int max) {
+    public static List<Integer> randomUniqueInts(int count, int min, int max) {
         if (count < 0) {
             throw new IllegalArgumentException("数量不能为负数: " + count);
         }
@@ -427,9 +429,16 @@ public final class RandomUtil {
         if (CollectionUtil.isEmpty(list) || list.size() == 1) {
             return list;
         }
-        T[] array = list.toArray(Arrays.copyOf(new Object[0], 0));
-        shuffle(array);
-        return List.of(array);
+        // 使用 ArrayList 副本进行原位洗牌，避免泛型数组创建问题
+        ArrayList<T> copy = new ArrayList<>(list);
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        for (int i = copy.size() - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            T tmp = copy.get(i);
+            copy.set(i, copy.get(j));
+            copy.set(j, tmp);
+        }
+        return copy;
     }
 
     // ======================== 验证码相关 ========================

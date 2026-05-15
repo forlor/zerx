@@ -102,7 +102,12 @@ public final class Retryer<T> {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw e;
-            } catch (Exception e) {
+            } catch (Error e) {
+                // Error 不应被重试机制捕获
+                throw e;
+            } catch (Throwable t) {
+                // 非 Error 的 Throwable 转为 Exception 处理（含受检异常）
+                Exception e = (t instanceof Exception ex) ? ex : new RuntimeException(t);
                 lastException = e;
                 if (attempt < maxAttempts && shouldRetry(e)) {
                     Duration delay = calculateDelay(attempt);

@@ -19,5 +19,6 @@
     <modules>
         <module>zerx-common</module>
         <module>zerx-architecture-test</module>
+        <module>zerx-core-bom</module>
     </modules>
 </project>
