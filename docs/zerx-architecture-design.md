@@ -384,12 +384,17 @@ public class GlobalExceptionHandler {
 
 ### 4.3 zerx-spring-data（数据访问增强）
 
-`zerx-spring-data` 提供数据访问层的增强能力，支持 MyBatis、MyBatis-Plus 和 Spring Data JPA 多种 ORM 框架的集成。主要提供：
+`zerx-spring-data` 基于 **Spring Data JDBC** 提供数据访问层的增强能力。Spring Data JDBC 是轻量级 ORM 方案，以聚合根为持久化单元，原生支持 DDD 领域建模。主要提供：
 
-- **通用分页查询封装**：统一不同 ORM 框架的分页接口
-- **多数据源配置支持**：自动装配动态数据源切换
-- **数据源监控组件**：提供连接池状态监控和慢 SQL 检测
-- **自动填充字段、逻辑删除**等通用功能的抽象封装
+- **聚合根基类**：统一 ID、审计字段、逻辑删除字段，所有实体继承 `BaseAggregate`
+- **审计支持**：通过 `@EnableJdbcAuditing` + `AuditorAware` 自动填充创建时间/人、更新时间/人
+- **逻辑删除**：通过 `BeforeDeleteCallback` 将 `DELETE` 转为 `UPDATE SET deleted=1`
+- **通用分页查询封装**：统一 `PageRequest` / `PageResult` 与 Spring Data `Pageable` 的整合
+- **多数据源配置支持**：自动装配动态数据源切换（主从读写分离）
+- **Single Query Loading**：开启后自动解决 N+1 查询问题
+- **自定义 Repository 基类**：提供批量保存、存在性检查等通用方法
+- **EntityCallback 生命周期钩子**：7 个回调点（BeforeSave/AfterSave/BeforeDelete 等）
+- **复杂查询兜底**：与 `JdbcTemplate` 共享 DataSource，无缝混用
 
 ### 4.4 zerx-spring-security（安全框架集成）
 
