@@ -1,3 +1,4 @@
 com.zerx.spring.web.autoconfigure.ZerxWebAutoConfiguration
 com.zerx.spring.web.config.JacksonAutoConfiguration
 com.zerx.spring.web.config.ZerxObservabilityAutoConfiguration
+com.zerx.spring.web.config.ZerxHttpClientAutoConfiguration

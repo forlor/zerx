@@ -59,6 +59,9 @@ public class ZerxWebProperties {
     /** 请求访问日志配置 */
     private AccessLog accessLog = new AccessLog();
 
+    /** HTTP 客户端配置 */
+    private HttpClient httpClient = new HttpClient();
+
     /**
      * 获取是否启用统一响应封装
      *
@@ -147,6 +150,24 @@ public class ZerxWebProperties {
      */
     public void setAccessLog(AccessLog accessLog) {
         this.accessLog = accessLog;
+    }
+
+    /**
+     * 获取 HTTP 客户端配置
+     *
+     * @return HttpClient 配置对象
+     */
+    public HttpClient getHttpClient() {
+        return httpClient;
+    }
+
+    /**
+     * 设置 HTTP 客户端配置
+     *
+     * @param httpClient HttpClient 配置对象
+     */
+    public void setHttpClient(HttpClient httpClient) {
+        this.httpClient = httpClient;
     }
 
     /**
@@ -359,5 +380,98 @@ public class ZerxWebProperties {
         public void setExcludeUrls(List<String> excludeUrls) { this.excludeUrls = excludeUrls; }
         public List<String> getSensitiveParams() { return sensitiveParams; }
         public void setSensitiveParams(List<String> sensitiveParams) { this.sensitiveParams = sensitiveParams; }
+    }
+
+    /**
+     * HTTP 客户端配置属性
+     * <p>
+     * 控制出站 HTTP 调用的超时策略、连接池、重试、日志和异常转换行为。
+     * 基于 Spring Boot 3.x {@link org.springframework.web.client.RestClient} 实现。
+     * </p>
+     *
+     * @author zerx
+     */
+    public static class HttpClient {
+
+        /** 是否启用 HTTP 客户端自动配置 */
+        private boolean enabled = true;
+
+        /** 连接超时（秒） */
+        private int connectTimeout = 5;
+
+        /** 读取超时（秒） */
+        private int readTimeout = 30;
+
+        /** 写入超时（秒） */
+        private int writeTimeout = 30;
+
+        /** 连接池最大连接数 */
+        private int maxConnections = 100;
+
+        /** 每个路由的最大连接数 */
+        private int maxConnectionsPerRoute = 20;
+
+        /** 空闲连接存活时间（秒） */
+        private int connectionIdleTimeout = 30;
+
+        /** 是否启用出站请求日志 */
+        private boolean accessLogEnabled = true;
+
+        /** 出站请求日志中响应体的最大记录长度（超过则截断），0 表示不记录 */
+        private int maxResponseBodyLogLength = 1024;
+
+        /** 最大重试次数（0 = 不重试） */
+        private int maxRetries = 2;
+
+        /** 重试初始退避间隔（毫秒） */
+        private long retryInitialDelayMs = 100;
+
+        /** 重试最大退避间隔（毫秒） */
+        private long retryMaxDelayMs = 3000;
+
+        /** 是否启用重试抖动（随机化延迟避免惊群） */
+        private boolean retryJitterEnabled = true;
+
+        /** 是否启用链路追踪透传（自动注入 X-Trace-Id） */
+        private boolean tracePropagationEnabled = true;
+
+        /** 是否启用非 2xx 响应自动转 ExternalServiceException */
+        private boolean errorHandlingEnabled = true;
+
+        /** 是否启用请求日志中敏感 Header 脱敏（Authorization 等） */
+        private boolean sensitiveHeaderMaskingEnabled = true;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getConnectTimeout() { return connectTimeout; }
+        public void setConnectTimeout(int connectTimeout) { this.connectTimeout = connectTimeout; }
+        public int getReadTimeout() { return readTimeout; }
+        public void setReadTimeout(int readTimeout) { this.readTimeout = readTimeout; }
+        public int getWriteTimeout() { return writeTimeout; }
+        public void setWriteTimeout(int writeTimeout) { this.writeTimeout = writeTimeout; }
+        public int getMaxConnections() { return maxConnections; }
+        public void setMaxConnections(int maxConnections) { this.maxConnections = maxConnections; }
+        public int getMaxConnectionsPerRoute() { return maxConnectionsPerRoute; }
+        public void setMaxConnectionsPerRoute(int maxConnectionsPerRoute) { this.maxConnectionsPerRoute = maxConnectionsPerRoute; }
+        public int getConnectionIdleTimeout() { return connectionIdleTimeout; }
+        public void setConnectionIdleTimeout(int connectionIdleTimeout) { this.connectionIdleTimeout = connectionIdleTimeout; }
+        public boolean isAccessLogEnabled() { return accessLogEnabled; }
+        public void setAccessLogEnabled(boolean accessLogEnabled) { this.accessLogEnabled = accessLogEnabled; }
+        public int getMaxResponseBodyLogLength() { return maxResponseBodyLogLength; }
+        public void setMaxResponseBodyLogLength(int maxResponseBodyLogLength) { this.maxResponseBodyLogLength = maxResponseBodyLogLength; }
+        public int getMaxRetries() { return maxRetries; }
+        public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+        public long getRetryInitialDelayMs() { return retryInitialDelayMs; }
+        public void setRetryInitialDelayMs(long retryInitialDelayMs) { this.retryInitialDelayMs = retryInitialDelayMs; }
+        public long getRetryMaxDelayMs() { return retryMaxDelayMs; }
+        public void setRetryMaxDelayMs(long retryMaxDelayMs) { this.retryMaxDelayMs = retryMaxDelayMs; }
+        public boolean isRetryJitterEnabled() { return retryJitterEnabled; }
+        public void setRetryJitterEnabled(boolean retryJitterEnabled) { this.retryJitterEnabled = retryJitterEnabled; }
+        public boolean isTracePropagationEnabled() { return tracePropagationEnabled; }
+        public void setTracePropagationEnabled(boolean tracePropagationEnabled) { this.tracePropagationEnabled = tracePropagationEnabled; }
+        public boolean isErrorHandlingEnabled() { return errorHandlingEnabled; }
+        public void setErrorHandlingEnabled(boolean errorHandlingEnabled) { this.errorHandlingEnabled = errorHandlingEnabled; }
+        public boolean isSensitiveHeaderMaskingEnabled() { return sensitiveHeaderMaskingEnabled; }
+        public void setSensitiveHeaderMaskingEnabled(boolean sensitiveHeaderMaskingEnabled) { this.sensitiveHeaderMaskingEnabled = sensitiveHeaderMaskingEnabled; }
     }
 }
