@@ -193,6 +193,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理文件上传大小超限异常
+     *
+     * @param ex 文件上传大小超限异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMaxUploadSizeExceededException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        log.warn("Max upload size exceeded: {}", ex.getMessage());
+        return Result.fail(ErrorCode.PARAM_OUT_OF_RANGE.code(), "上传文件大小超过限制");
+    }
+
+    /**
+     * 处理文件上传相关异常（通用）
+     *
+     * @param ex 文件上传异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMultipartException(org.springframework.web.multipart.MultipartException ex) {
+        log.warn("Multipart exception: {}", ex.getMessage());
+        return Result.fail(ErrorCode.PARAM_FORMAT_ERROR.code(), "文件上传失败: " + ex.getMessage());
+    }
+
+    /**
      * 兜底处理所有未捕获的异常
      *
      * @param ex 未知异常

@@ -2,11 +2,14 @@ package com.zerx.spring.web.autoconfigure;
 
 import com.zerx.spring.web.advise.GlobalExceptionHandler;
 import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
+import com.zerx.spring.web.config.JacksonAutoConfiguration;
 import com.zerx.spring.web.config.ZerxCorsAutoConfiguration;
+import com.zerx.spring.web.filter.AccessLogFilter;
 import com.zerx.spring.web.filter.TraceFilter;
 import com.zerx.spring.web.interceptor.RequestContextInterceptor;
 import com.zerx.spring.web.properties.ZerxWebProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -37,7 +40,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(ZerxWebProperties.class)
-@Import(ZerxCorsAutoConfiguration.class)
+@Import({ZerxCorsAutoConfiguration.class, JacksonAutoConfiguration.class})
 public class ZerxWebAutoConfiguration {
 
     /**
@@ -61,6 +64,24 @@ public class ZerxWebAutoConfiguration {
         FilterRegistrationBean<TraceFilter> registration = new FilterRegistrationBean<>(new TraceFilter());
         registration.setOrder(Integer.MIN_VALUE);
         registration.setName("zerxTraceFilter");
+        registration.addUrlPatterns("/*");
+        return registration;
+    }
+
+    /**
+     * 注册请求访问日志过滤器
+     *
+     * @param properties Web 模块配置属性
+     * @return AccessLogFilter 的 FilterRegistrationBean
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "zerx.web.access-log", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    public FilterRegistrationBean<AccessLogFilter> accessLogFilterRegistration(ZerxWebProperties properties) {
+        FilterRegistrationBean<AccessLogFilter> registration =
+                new FilterRegistrationBean<>(new AccessLogFilter(properties));
+        registration.setOrder(Integer.MIN_VALUE + 2);
+        registration.setName("zerxAccessLogFilter");
         registration.addUrlPatterns("/*");
         return registration;
     }

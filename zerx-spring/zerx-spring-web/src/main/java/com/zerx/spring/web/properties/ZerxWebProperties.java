@@ -53,6 +53,12 @@ public class ZerxWebProperties {
      */
     private Cors cors = new Cors();
 
+    /** Jackson 序列化配置 */
+    private Jackson jackson = new Jackson();
+
+    /** 请求访问日志配置 */
+    private AccessLog accessLog = new AccessLog();
+
     /**
      * 获取是否启用统一响应封装
      *
@@ -105,6 +111,42 @@ public class ZerxWebProperties {
      */
     public void setCors(Cors cors) {
         this.cors = cors;
+    }
+
+    /**
+     * 获取 Jackson 序列化配置
+     *
+     * @return Jackson 配置对象
+     */
+    public Jackson getJackson() {
+        return jackson;
+    }
+
+    /**
+     * 设置 Jackson 序列化配置
+     *
+     * @param jackson Jackson 配置对象
+     */
+    public void setJackson(Jackson jackson) {
+        this.jackson = jackson;
+    }
+
+    /**
+     * 获取请求访问日志配置
+     *
+     * @return AccessLog 配置对象
+     */
+    public AccessLog getAccessLog() {
+        return accessLog;
+    }
+
+    /**
+     * 设置请求访问日志配置
+     *
+     * @param accessLog AccessLog 配置对象
+     */
+    public void setAccessLog(AccessLog accessLog) {
+        this.accessLog = accessLog;
     }
 
     /**
@@ -264,5 +306,58 @@ public class ZerxWebProperties {
         public void setMaxAge(long maxAge) {
             this.maxAge = maxAge;
         }
+    }
+
+    /**
+     * Jackson 序列化配置属性
+     * <p>
+     * 控制 JSON 序列化行为：Long→String、日期格式、null 值处理等。
+     * </p>
+     *
+     * @author zerx
+     */
+    public static class Jackson {
+        /** 日期时间格式，如 "yyyy-MM-dd HH:mm:ss" */
+        private String dateFormat = "yyyy-MM-dd HH:mm:ss";
+
+        /** 是否序列化 null 值 */
+        private boolean includeNull = false;
+
+        public String getDateFormat() { return dateFormat; }
+        public void setDateFormat(String dateFormat) { this.dateFormat = dateFormat; }
+        public boolean isIncludeNull() { return includeNull; }
+        public void setIncludeNull(boolean includeNull) { this.includeNull = includeNull; }
+    }
+
+    /**
+     * 请求访问日志配置属性
+     *
+     * @author zerx
+     */
+    public static class AccessLog {
+        /** 是否启用请求日志 */
+        private boolean enabled = true;
+
+        /** 慢请求阈值（毫秒），超过则 WARN */
+        private long slowThresholdMs = 3000L;
+
+        /** 排除的 URL 路径（支持通配符，如 /actuator/**） */
+        private List<String> excludeUrls = List.of(
+                "/actuator/**", "/doc.html", "/swagger-ui/**", "/v3/api-docs/**", "/favicon.ico"
+        );
+
+        /** 需要脱敏的参数名 */
+        private List<String> sensitiveParams = List.of(
+                "password", "token", "secret", "credential", "authorization", "phone", "mobile"
+        );
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public long getSlowThresholdMs() { return slowThresholdMs; }
+        public void setSlowThresholdMs(long slowThresholdMs) { this.slowThresholdMs = slowThresholdMs; }
+        public List<String> getExcludeUrls() { return excludeUrls; }
+        public void setExcludeUrls(List<String> excludeUrls) { this.excludeUrls = excludeUrls; }
+        public List<String> getSensitiveParams() { return sensitiveParams; }
+        public void setSensitiveParams(List<String> sensitiveParams) { this.sensitiveParams = sensitiveParams; }
     }
 }
