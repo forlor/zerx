@@ -1,5 +1,6 @@
 package com.zerx.spring.data.archive;
 
+import com.zerx.spring.data.util.NamingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -144,28 +145,6 @@ public class ArchiveService {
      * 解析归档表名
      */
     private String resolveArchiveTable(Class<?> entityClass) {
-        var tableAnnotation = entityClass.getAnnotation(
-                org.springframework.data.relational.core.mapping.Table.class);
-        String tableName;
-        if (tableAnnotation != null && !tableAnnotation.value().isBlank()) {
-            tableName = tableAnnotation.value();
-        } else {
-            tableName = camelToSnake(entityClass.getSimpleName());
-        }
-        return tableName + properties.getTableSuffix();
-    }
-
-    private static String camelToSnake(String str) {
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) result.append('_');
-                result.append(Character.toLowerCase(c));
-            } else {
-                result.append(c);
-            }
-        }
-        return result.toString();
+        return NamingUtils.resolveTableName(entityClass) + properties.getTableSuffix();
     }
 }

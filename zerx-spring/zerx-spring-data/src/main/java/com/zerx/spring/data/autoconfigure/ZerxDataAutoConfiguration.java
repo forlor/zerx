@@ -7,6 +7,8 @@ import com.zerx.spring.data.audit.ZerxAuditorAware;
 import com.zerx.spring.data.config.CamelCaseNamingStrategy;
 import com.zerx.spring.data.config.SlowSqlInterceptor;
 import com.zerx.spring.data.datascope.DataScopeHandler;
+import com.zerx.spring.data.datascope.DataScopeInterceptor;
+import com.zerx.spring.data.datascope.DataScopeUserProvider;
 import com.zerx.spring.data.properties.ZerxDataProperties;
 import com.zerx.spring.data.repository.ZerxRepositoryHelper;
 import org.slf4j.Logger;
@@ -157,6 +159,57 @@ public class ZerxDataAutoConfiguration {
     public ZerxRepositoryHelper zerxRepositoryHelper(DataSource dataSource) {
         log.info("[Zerx] ZerxRepositoryHelper registered — enhanced repository capabilities available");
         return new ZerxRepositoryHelper(dataSource);
+    }
+
+    /**
+     * 注册数据权限处理器，根据 {@link DataScope @DataScope} 注解生成 SQL 条件。
+     * <p>
+     * 当 DataSource 可用时自动注册。配合 {@link DataScopeInterceptor} 使用，
+     * 无需手动调用，AOP 拦截器自动在 Service 方法执行前生成条件。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(DataSource.class)
+    public DataScopeHandler dataScopeHandler(DataSource dataSource) {
+        log.info("[Zerx] DataScopeHandler registered — data scope SQL generation available");
+        return new DataScopeHandler(new JdbcTemplate(dataSource));
+    }
+
+    /**
+     * 注册数据权限 AOP 拦截器。
+     * <p>
+     * 当业务系统提供了 {@link DataScopeUserProvider} Bean 时自动激活，
+     * 拦截标注 {@link DataScope @DataScope} 的 Service 方法，
+     * 自动应用数据权限过滤条件。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(DataScopeUserProvider.class)
+    public DataScopeInterceptor dataScopeInterceptor(DataScopeHandler dataScopeHandler,
+                                                      DataScopeUserProvider userProvider) {
+        log.info("[Zerx] DataScopeInterceptor registered — @DataScope AOP interception enabled");
+        return new DataScopeInterceptor(dataScopeHandler, userProvider);
+    }
+
+    /**
+     * 归档过期数据定时清理任务。
+     * <p>
+     * 当 {@code zerx.data.archive.enabled=true} 且 {@code zerx.data.archive.purge-cron} 配置时激活。
+     * 默认每天凌晨 3 点执行，清理超过 {@code zerx.data.archive.retain-days} 天的归档数据。
+     * 需要在启动类上添加 {@code @EnableScheduling} 才能生效。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "zerx.data.archive", name = "enabled",
+            havingValue = "true", matchIfMissing = false)
+    @ConditionalOnBean(DataSource.class)
+    public ArchivePurgeTask archivePurgeTask(ArchiveProperties properties,
+                                              List<com.zerx.spring.data.archive.Archiver<?>> archivers) {
+        log.info("[Zerx] ArchivePurgeTask registered — cron: {}, retainDays: {}",
+                properties.getPurgeCron(), properties.getRetainDays());
+        return new ArchivePurgeTask(properties, archivers);
     }
 
     /**

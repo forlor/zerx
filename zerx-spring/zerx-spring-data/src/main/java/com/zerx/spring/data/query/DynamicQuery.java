@@ -2,6 +2,8 @@ package com.zerx.spring.data.query;
 
 import com.zerx.common.model.PageRequest;
 import com.zerx.common.model.PageResult;
+import com.zerx.spring.data.datascope.DataScopeContext;
+import com.zerx.spring.data.datascope.DataScopeHandler.DataScopeSql;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -54,6 +56,7 @@ public class DynamicQuery {
     private boolean selectOverridden;
     private int groupByCount;
     private int orderByCount;
+    private boolean limitApplied;
 
     /**
      * 表名后是否刚追加了 " ("，用于 OR 组内第一个条件的判断。
@@ -289,6 +292,33 @@ public class DynamicQuery {
         return this;
     }
 
+    // ======================== 数据权限 ========================
+
+    /**
+     * 应用数据权限过滤条件。
+     * <p>
+     * 从 {@link DataScopeContext} 获取当前线程的数据权限 SQL 条件并追加到 WHERE 子句。
+     * 由 {@code @DataScope} AOP 拦截器在 Service 方法执行前设置上下文。
+     * </p>
+     * <p>
+     * 如果当前线程没有数据权限条件（如未标注 {@code @DataScope} 或权限类型为 ALL），
+     * 此方法不做任何操作。
+     * </p>
+     *
+     * @return this
+     * @see com.zerx.spring.data.datascope.DataScopeInterceptor
+     * @see DataScopeContext
+     */
+    public DynamicQuery applyDataScope() {
+        DataScopeSql scopeSql = DataScopeContext.current();
+        if (scopeSql != null) {
+            appendWhere();
+            sql.append("(").append(scopeSql.condition()).append(")");
+            params.addAll(scopeSql.params());
+        }
+        return this;
+    }
+
     // ======================== OR 条件组 ========================
 
     /**
@@ -436,11 +466,17 @@ public class DynamicQuery {
     // ======================== 分页 ========================
 
     /**
-     * LIMIT
+     * LIMIT。
+     * <p>
+     * 注意：调用 {@link #page(PageRequest, RowMapper)} 后会自动追加 LIMIT/OFFSET，
+     * 无需手动调用此方法。如果同时调用了 {@code limit()} 和 {@code page()}，
+     * 将产生双重 LIMIT 导致 SQL 异常。
+     * </p>
      */
     public DynamicQuery limit(int limit) {
         sql.append(" LIMIT ?");
         params.add(limit);
+        limitApplied = true;
         return this;
     }
 
@@ -499,14 +535,24 @@ public class DynamicQuery {
     }
 
     /**
-     * 分页查询，返回 zerx-common 的 {@link PageResult}
+     * 分页查询，返回 zerx-common 的 {@link PageResult}。
+     * <p>
+     * 先通过 COUNT 查询获取总数，再执行 LIMIT/OFFSET 分页查询。
+     * 自动追加 LIMIT 和 OFFSET，无需手动调用 {@link #limit(int)} 和 {@link #offset(int)}。
+     * </p>
      *
      * @param pageRequest 分页请求参数
      * @param rowMapper   行映射器
      * @param <T>         返回类型
      * @return 分页结果
+     * @throws IllegalStateException 如果已手动调用了 {@link #limit(int)}
      */
     public <T> PageResult<T> page(PageRequest pageRequest, RowMapper<T> rowMapper) {
+        if (limitApplied) {
+            throw new IllegalStateException(
+                    "DynamicQuery.page() must not be called after limit(). " +
+                    "page() auto-applies LIMIT/OFFSET, remove the manual limit() call.");
+        }
         long total = count();
         List<T> records = jdbcTemplate.query(
                 sql + " LIMIT ? OFFSET ?",

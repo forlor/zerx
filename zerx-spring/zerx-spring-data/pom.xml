@@ -25,6 +25,12 @@
 
         <!-- zerx-common 已在父 POM 声明 -->
 
+        <!-- AOP（数据权限拦截器需要） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

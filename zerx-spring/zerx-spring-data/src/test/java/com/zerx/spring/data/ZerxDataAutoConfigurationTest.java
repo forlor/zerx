@@ -1,10 +1,15 @@
 package com.zerx.spring.data;
 
+import com.zerx.spring.data.autoconfigure.ArchivePurgeTask;
 import com.zerx.spring.data.autoconfigure.ZerxDataAutoConfiguration;
 import com.zerx.spring.data.archive.ArchiveCallback;
 import com.zerx.spring.data.archive.ArchiveProperties;
 import com.zerx.spring.data.config.SlowSqlInterceptor;
+import com.zerx.spring.data.datascope.DataScopeHandler;
+import com.zerx.spring.data.datascope.DataScopeInterceptor;
+import com.zerx.spring.data.datascope.DataScopeUserProvider;
 import com.zerx.spring.data.properties.ZerxDataProperties;
+import com.zerx.spring.data.repository.ZerxRepositoryHelper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -171,6 +176,50 @@ class ZerxDataAutoConfigurationTest {
                 });
     }
 
+    @Test
+    void zerxRepositoryHelper_registeredWithDataSource() {
+        contextRunner.run(context -> {
+            assertThat(context).hasSingleBean(ZerxRepositoryHelper.class);
+        });
+    }
+
+    @Test
+    void dataScopeHandler_registeredWithDataSource() {
+        contextRunner.run(context -> {
+            assertThat(context).hasSingleBean(DataScopeHandler.class);
+        });
+    }
+
+    @Test
+    void dataScopeInterceptor_notRegistered_withoutUserProvider() {
+        contextRunner.run(context -> {
+            assertThat(context).doesNotHaveBean(DataScopeInterceptor.class);
+        });
+    }
+
+    @Test
+    void dataScopeInterceptor_registered_withUserProvider() {
+        contextRunner.withUserConfiguration(TestDataScopeUserProviderConfig.class)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(DataScopeInterceptor.class);
+                });
+    }
+
+    @Test
+    void archivePurgeTask_registeredWhenArchiveEnabled() {
+        contextRunner.withPropertyValues("zerx.data.archive.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(ArchivePurgeTask.class);
+                });
+    }
+
+    @Test
+    void archivePurgeTask_notRegisteredWhenArchiveDisabled() {
+        contextRunner.run(context -> {
+            assertThat(context).doesNotHaveBean(ArchivePurgeTask.class);
+        });
+    }
+
     /**
      * 测试用数据源配置
      */
@@ -192,6 +241,19 @@ class ZerxDataAutoConfigurationTest {
         @Bean
         AuditorAware<Long> customAuditorAware() {
             return () -> java.util.Optional.of(999L);
+        }
+    }
+
+    /**
+     * 测试用 DataScopeUserProvider 配置
+     */
+    @Configuration
+    static class TestDataScopeUserProviderConfig {
+        @Bean
+        DataScopeUserProvider testDataScopeUserProvider() {
+            return () -> java.util.Optional.of(
+                    new com.zerx.spring.data.datascope.DataScopeUser(
+                            1L, java.util.List.of(1L), java.util.List.of("admin")));
         }
     }
 }

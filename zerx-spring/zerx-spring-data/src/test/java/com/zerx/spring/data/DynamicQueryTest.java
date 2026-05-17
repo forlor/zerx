@@ -494,4 +494,56 @@ class DynamicQueryTest {
         assertFalse(sql.contains("WHERE"));
         assertFalse(sql.contains("NOT IN"));
     }
+
+    @Test
+    void page_afterLimit_throwsException() {
+        var dq = DynamicQuery.from(jdbcTemplate, "test_user")
+                .orderBy("id", true)
+                .limit(10);
+
+        PageRequest pageReq = new PageRequest(1, 2);
+        assertThrows(IllegalStateException.class, () -> dq.page(pageReq, mapRowMapper));
+    }
+
+    @Test
+    void page_withoutLimit_works() {
+        PageRequest pageReq = new PageRequest(1, 2);
+        PageResult<Map<String, Object>> result = DynamicQuery.from(jdbcTemplate, "test_user")
+                .orderBy("id", true)
+                .page(pageReq, mapRowMapper);
+
+        assertEquals(5, result.total());
+        assertEquals(2, result.records().size());
+    }
+
+    @Test
+    void applyDataScope_withoutContext_noEffect() {
+        var dq = DynamicQuery.from(jdbcTemplate, "test_user")
+                .eq("status", "ACTIVE")
+                .applyDataScope();
+
+        // 没有设置 DataScopeContext，applyDataScope 不应追加任何条件
+        String sql = dq.getSql();
+        assertFalse(sql.contains("("));
+    }
+
+    @Test
+    void applyDataScope_withContext_appendsCondition() {
+        com.zerx.spring.data.datascope.DataScopeContext.set(
+                new com.zerx.spring.data.datascope.DataScopeHandler.DataScopeSql(
+                        "dept_id IN (?,?)", List.of(1L, 2L)));
+
+        try {
+            var dq = DynamicQuery.from(jdbcTemplate, "test_user")
+                    .eq("status", "ACTIVE")
+                    .applyDataScope();
+
+            String sql = dq.getSql();
+            assertTrue(sql.contains("(dept_id IN (?,?))"));
+            Object[] params = dq.getParams();
+            assertTrue(params.length >= 3); // "ACTIVE" + 1L + 2L
+        } finally {
+            com.zerx.spring.data.datascope.DataScopeContext.clear();
+        }
+    }
 }

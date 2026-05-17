@@ -3,14 +3,12 @@ package com.zerx.spring.data.repository;
 import com.zerx.common.model.PageRequest;
 import com.zerx.common.model.PageResult;
 import com.zerx.spring.data.domain.BaseEntity;
+import com.zerx.spring.data.util.NamingUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.sql.DataSource;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -55,7 +53,6 @@ import java.util.Map;
  * @see ZerxRepository
  * @see com.zerx.spring.data.query.DynamicQuery
  */
-@Component
 public class ZerxRepositoryHelper {
 
     private final JdbcTemplate jdbcTemplate;
@@ -159,30 +156,6 @@ public class ZerxRepositoryHelper {
      * @return 表名
      */
     private String resolveTableName(Class<?> entityClass) {
-        var tableAnnotation = entityClass.getAnnotation(
-                org.springframework.data.relational.core.mapping.Table.class);
-        if (tableAnnotation != null && !tableAnnotation.value().isBlank()) {
-            return tableAnnotation.value();
-        }
-        return camelToSnake(entityClass.getSimpleName());
-    }
-
-    /**
-     * 驼峰命名转下划线命名。
-     */
-    private static String camelToSnake(String str) {
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) {
-                    result.append('_');
-                }
-                result.append(Character.toLowerCase(c));
-            } else {
-                result.append(c);
-            }
-        }
-        return result.toString();
+        return NamingUtils.resolveTableName(entityClass);
     }
 }

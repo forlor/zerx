@@ -63,6 +63,16 @@ public class ArchiveProperties {
      */
     private Duration timeout = Duration.ofSeconds(10);
 
+    /**
+     * 过期归档清理 cron 表达式。
+     * <p>
+     * 定时清理超过 {@link #retainDays} 天的归档数据。
+     * 需要在启动类上添加 {@code @EnableScheduling} 才能生效。
+     * 默认每天凌晨 3 点执行。
+     * </p>
+     */
+    private String purgeCron = "0 0 3 * * ?";
+
     // ======================== getter/setter ========================
 
     public boolean isEnabled() {
@@ -103,6 +113,14 @@ public class ArchiveProperties {
 
     public void setTimeout(Duration timeout) {
         this.timeout = timeout;
+    }
+
+    public String getPurgeCron() {
+        return purgeCron;
+    }
+
+    public void setPurgeCron(String purgeCron) {
+        this.purgeCron = purgeCron;
     }
 
     /**

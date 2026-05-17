@@ -1,13 +1,10 @@
 package com.zerx.spring.data.archive;
 
+import com.zerx.spring.data.util.NamingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -194,12 +191,7 @@ public class JdbcArchiveRepository<T> implements Archiver<T> {
      * @return 表名
      */
     private String resolveTableName(Class<?> clazz) {
-        var tableAnnotation = clazz.getAnnotation(org.springframework.data.relational.core.mapping.Table.class);
-        if (tableAnnotation != null && !tableAnnotation.value().isBlank()) {
-            return tableAnnotation.value();
-        }
-        // 默认使用类名转 snake_case
-        return camelToSnake(clazz.getSimpleName());
+        return NamingUtils.resolveTableName(clazz);
     }
 
     /**
@@ -220,24 +212,5 @@ public class JdbcArchiveRepository<T> implements Archiver<T> {
                     entityClass.getSimpleName(), e.getMessage());
             return null;
         }
-    }
-
-    /**
-     * 驼峰命名转下划线命名
-     */
-    private static String camelToSnake(String str) {
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) {
-                    result.append('_');
-                }
-                result.append(Character.toLowerCase(c));
-            } else {
-                result.append(c);
-            }
-        }
-        return result.toString();
     }
 }

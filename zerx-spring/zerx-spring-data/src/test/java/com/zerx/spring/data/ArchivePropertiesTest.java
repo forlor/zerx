@@ -23,6 +23,7 @@ class ArchivePropertiesTest {
         assertTrue(props.getEntities().isEmpty());
         assertEquals(90, props.getRetainDays());
         assertEquals(java.time.Duration.ofSeconds(10), props.getTimeout());
+        assertEquals("0 0 3 * * ?", props.getPurgeCron());
     }
 
     @Test
@@ -36,6 +37,7 @@ class ArchivePropertiesTest {
         props.setEntities(entities);
         props.setRetainDays(180);
         props.setTimeout(java.time.Duration.ofSeconds(30));
+        props.setPurgeCron("0 0 2 * * ?");
 
         assertTrue(props.isEnabled());
         assertEquals("_history", props.getTableSuffix());
@@ -43,6 +45,7 @@ class ArchivePropertiesTest {
         assertTrue(props.getEntities().contains("com.example.User"));
         assertEquals(180, props.getRetainDays());
         assertEquals(java.time.Duration.ofSeconds(30), props.getTimeout());
+        assertEquals("0 0 2 * * ?", props.getPurgeCron());
     }
 
     @Test
