@@ -3,21 +3,23 @@ package com.zerx.spring.data.properties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
-import java.util.List;
 
 /**
  * Zerx 数据访问层配置属性。
  * <p>
- * 统一管理逻辑删除、慢 SQL 检测、Single Query Loading、命名策略等数据层通用配置。
+ * 统一管理慢 SQL 检测、Single Query Loading、命名策略等数据层通用配置。
  * 通过 {@code zerx.data.*} 前缀在 application.yml 中配置。
+ * </p>
+ *
+ * <p>
+ * 归档相关配置见 {@link com.zerx.spring.data.archive.ArchiveProperties}，
+ * 通过 {@code zerx.data.archive.*} 前缀配置。
  * </p>
  *
  * @author zerx
  */
 @ConfigurationProperties(prefix = "zerx.data")
 public class ZerxDataProperties {
-
-    private LogicDelete logicDelete = new LogicDelete();
 
     private SlowSql slowSql = new SlowSql();
 
@@ -32,14 +34,6 @@ public class ZerxDataProperties {
     private NamingStrategy namingStrategy = NamingStrategy.SNAKE_CASE;
 
     // --- getter/setter ---
-
-    public LogicDelete getLogicDelete() {
-        return logicDelete;
-    }
-
-    public void setLogicDelete(LogicDelete logicDelete) {
-        this.logicDelete = logicDelete;
-    }
 
     public SlowSql getSlowSql() {
         return slowSql;
@@ -63,66 +57,6 @@ public class ZerxDataProperties {
 
     public void setNamingStrategy(NamingStrategy namingStrategy) {
         this.namingStrategy = namingStrategy;
-    }
-
-    // ======================== 逻辑删除配置 ========================
-
-    /**
-     * 逻辑删除配置
-     */
-    public static class LogicDelete {
-
-        /**
-         * 是否启用逻辑删除
-         */
-        private boolean enabled = true;
-
-        /**
-         * 逻辑删除字段名
-         */
-        private String field = "deleted";
-
-        /**
-         * 删除标记值
-         */
-        private int deletedValue = 1;
-
-        /**
-         * 未删除标记值
-         */
-        private int notDeletedValue = 0;
-
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-
-        public String getField() {
-            return field;
-        }
-
-        public void setField(String field) {
-            this.field = field;
-        }
-
-        public int getDeletedValue() {
-            return deletedValue;
-        }
-
-        public void setDeletedValue(int deletedValue) {
-            this.deletedValue = deletedValue;
-        }
-
-        public int getNotDeletedValue() {
-            return notDeletedValue;
-        }
-
-        public void setNotDeletedValue(int notDeletedValue) {
-            this.notDeletedValue = notDeletedValue;
-        }
     }
 
     // ======================== 慢 SQL 检测配置 ========================

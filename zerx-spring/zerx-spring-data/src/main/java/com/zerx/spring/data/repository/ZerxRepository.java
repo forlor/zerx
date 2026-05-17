@@ -1,59 +1,45 @@
 package com.zerx.spring.data.repository;
 
+import com.zerx.spring.data.domain.BaseEntity;
+import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.NoRepositoryBean;
 
-import java.util.List;
-import java.util.Optional;
-
 /**
- * Zerx 通用 Repository Fragment 接口。
+ * Zerx 通用 Repository 接口。
  * <p>
- * 提供逻辑删除感知的通用查询方法，业务 Repository 同时继承
- * {@code CrudRepository} 和 {@code ZerxRepository} 即可获得这些能力。
+ * 扩展 Spring Data JDBC 的 {@link CrudRepository}，为所有业务 Repository 提供统一的基础能力。
+ * 业务 Repository 只需继承此接口即可获得标准 CRUD 操作。
  * </p>
  *
  * <h3>使用示例：</h3>
  * <pre>{@code
- * public interface UserRepository extends CrudRepository<User, Long>,
- *     ZerxRepository<User, Long> {
+ * public interface UserRepository extends ZerxRepository<User, Long> {
  *     // 自定义派生查询...
+ *     List<User> findByStatus(String status);
  * }
  * }</pre>
  *
- * @param <T>  实体类型
+ * <h3>增强能力：</h3>
+ * <p>
+ * 需要分页查询、批量存在性检查等增强能力时，注入 {@link ZerxRepositoryHelper}：
+ * </p>
+ * <pre>{@code
+ * {@literal @}Service
+ * public class UserService {
+ *     private final UserRepository userRepo;
+ *     private final ZerxRepositoryHelper repoHelper;
+ *
+ *     public PageResult<User> listUsers(PageRequest pageReq) {
+ *         return repoHelper.findPage(User.class, pageReq);
+ *     }
+ * }
+ * }</pre>
+ *
+ * @param <T>  实体类型（必须继承 {@link BaseEntity}）
  * @param <ID> 主键类型
  * @author zerx
+ * @see ZerxRepositoryHelper
  */
 @NoRepositoryBean
-public interface ZerxRepository<T, ID> {
-
-    /**
-     * 根据 ID 查询实体（自动过滤已删除记录）
-     *
-     * @param id 主键
-     * @return 未删除的实体，不存在或已删除返回 Optional.empty()
-     */
-    Optional<T> findByIdAndDeletedFalse(ID id);
-
-    /**
-     * 查询所有未删除的记录
-     *
-     * @return 未删除的实体列表
-     */
-    List<T> findAllByDeletedFalse();
-
-    /**
-     * 统计未删除的记录数
-     *
-     * @return 未删除记录的数量
-     */
-    long countByDeletedFalse();
-
-    /**
-     * 判断指定 ID 的未删除记录是否存在
-     *
-     * @param id 主键
-     * @return 存在且未删除返回 true
-     */
-    boolean existsByIdAndDeletedFalse(ID id);
+public interface ZerxRepository<T extends BaseEntity, ID> extends CrudRepository<T, ID> {
 }

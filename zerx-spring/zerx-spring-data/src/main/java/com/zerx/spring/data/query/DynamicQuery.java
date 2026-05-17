@@ -23,12 +23,23 @@ import java.util.Optional;
  *     .eq("status", "ACTIVE")
  *     .like("username", keyword)
  *     .between("create_time", startTime, endTime)
- *     .eq("deleted", 0)
+ *     .notIn("role", List.of("BANNED", "DELETED"))
  *     .orderBy("create_time", false)
  *     .limit(20)
  *     .offset(0)
  *     .list(rowMapper);
  * }</pre>
+ *
+ * <h3>支持的特性：</h3>
+ * <ul>
+ *     <li>WHERE 条件：eq / ne / like / notLike / in / notIn / between / ge / gt / le / lt / isNull / isNotNull / raw</li>
+ *     <li>OR 条件组：or / endOr</li>
+ *     <li>JOIN：leftJoin / innerJoin / rightJoin / crossJoin</li>
+ *     <li>GROUP BY / HAVING</li>
+ *     <li>ORDER BY（支持多列排序）</li>
+ *     <li>DISTINCT</li>
+ *     <li>分页：limit / offset / page</li>
+ * </ul>
  *
  * @author zerx
  */
@@ -38,8 +49,16 @@ public class DynamicQuery {
     private final StringBuilder sql;
     private final java.util.ArrayList<Object> params;
     private boolean whereAppended;
+    private boolean inOrGroup;
     private final String table;
     private boolean selectOverridden;
+    private int groupByCount;
+    private int orderByCount;
+
+    /**
+     * 表名后是否刚追加了 " ("，用于 OR 组内第一个条件的判断。
+     */
+    private boolean afterOrOpenParen;
 
     private DynamicQuery(JdbcTemplate jdbcTemplate, String table) {
         this.jdbcTemplate = jdbcTemplate;
@@ -47,14 +66,18 @@ public class DynamicQuery {
         this.sql = new StringBuilder("SELECT * FROM ").append(table);
         this.params = new java.util.ArrayList<>();
         this.whereAppended = false;
+        this.inOrGroup = false;
+        this.afterOrOpenParen = false;
         this.selectOverridden = false;
+        this.groupByCount = 0;
+        this.orderByCount = 0;
     }
 
     /**
      * 创建 DynamicQuery 实例
      *
      * @param jdbcTemplate JDBC 模板
-     * @param table        表名
+     * @param table        表名（可带别名，如 "sys_user u"）
      * @return 新的 DynamicQuery 实例
      */
     public static DynamicQuery from(JdbcTemplate jdbcTemplate, String table) {
@@ -73,6 +96,25 @@ public class DynamicQuery {
         sql.setLength(0);
         sql.append("SELECT ").append(String.join(", ", columns)).append(" FROM ").append(table);
         selectOverridden = true;
+        return this;
+    }
+
+    /**
+     * 添加 DISTINCT 关键字
+     *
+     * @return this
+     */
+    public DynamicQuery distinct() {
+        if (!selectOverridden) {
+            sql.setLength(0);
+            sql.append("SELECT DISTINCT * FROM ").append(table);
+            selectOverridden = true;
+        } else {
+            // 替换已有的 SELECT 为 SELECT DISTINCT
+            String current = sql.toString();
+            sql.setLength(0);
+            sql.append(current.replaceFirst("(?i)SELECT\\s+", "SELECT DISTINCT "));
+        }
         return this;
     }
 
@@ -115,6 +157,18 @@ public class DynamicQuery {
     }
 
     /**
+     * NOT LIKE 模糊查询（自动添加 % 通配符）
+     */
+    public DynamicQuery notLike(String column, String value) {
+        if (value != null && !value.isBlank()) {
+            appendWhere();
+            sql.append(column).append(" NOT LIKE ?");
+            params.add("%" + value + "%");
+        }
+        return this;
+    }
+
+    /**
      * IN 条件
      */
     public DynamicQuery in(String column, java.util.Collection<?> values) {
@@ -124,6 +178,21 @@ public class DynamicQuery {
                     .map(v -> "?")
                     .collect(java.util.stream.Collectors.joining(","));
             sql.append(column).append(" IN (").append(placeholders).append(")");
+            params.addAll(values);
+        }
+        return this;
+    }
+
+    /**
+     * NOT IN 条件
+     */
+    public DynamicQuery notIn(String column, java.util.Collection<?> values) {
+        if (values != null && !values.isEmpty()) {
+            appendWhere();
+            String placeholders = values.stream()
+                    .map(v -> "?")
+                    .collect(java.util.stream.Collectors.joining(","));
+            sql.append(column).append(" NOT IN (").append(placeholders).append(")");
             params.addAll(values);
         }
         return this;
@@ -220,16 +289,77 @@ public class DynamicQuery {
         return this;
     }
 
+    // ======================== OR 条件组 ========================
+
+    /**
+     * 开始 OR 条件组。
+     * <p>
+     * OR 条件组内的条件使用 OR 连接，组间使用 AND 连接。
+     * </p>
+     * <pre>{@code
+     * DynamicQuery.from(jdbc, "user")
+     *     .eq("status", "ACTIVE")
+     *     .or()
+     *     .eq("role", "ADMIN")
+     *     .orCondition()
+     *     .eq("role", "SUPER_ADMIN")
+     *     .endOr()
+     *     .list(rowMapper);
+     * // SQL: SELECT * FROM user WHERE status = 'ACTIVE' AND (role = 'ADMIN' OR role = 'SUPER_ADMIN')
+     * }</pre>
+     *
+     * @return this
+     */
+    public DynamicQuery or() {
+        appendWhere();
+        sql.append('(');
+        inOrGroup = true;
+        afterOrOpenParen = true;
+        return this;
+    }
+
+    /**
+     * 结束 OR 条件组。
+     *
+     * @return this
+     */
+    public DynamicQuery endOr() {
+        sql.append(')');
+        inOrGroup = false;
+        return this;
+    }
+
+    /**
+     * 在 OR 组内添加 OR 连接符。
+     * <p>
+     * 配合 {@link #or()} 和 {@link #endOr()} 使用，
+     * 在 OR 组内的多个条件之间插入 OR 关键字。
+     * </p>
+     *
+     * @return this
+     */
+    public DynamicQuery orCondition() {
+        sql.append(" OR ");
+        return this;
+    }
+
     // ======================== ORDER BY ========================
 
     /**
-     * 排序
+     * 排序（支持多次调用，以逗号分隔）
      *
      * @param column 列名
      * @param asc    true 为升序，false 为降序
+     * @return this
      */
     public DynamicQuery orderBy(String column, boolean asc) {
-        sql.append(" ORDER BY ").append(column).append(asc ? " ASC" : " DESC");
+        if (orderByCount == 0) {
+            sql.append(" ORDER BY ");
+        } else {
+            sql.append(", ");
+        }
+        sql.append(column).append(asc ? " ASC" : " DESC");
+        orderByCount++;
         return this;
     }
 
@@ -239,7 +369,13 @@ public class DynamicQuery {
      * GROUP BY
      */
     public DynamicQuery groupBy(String... columns) {
-        sql.append(" GROUP BY ").append(String.join(", ", columns));
+        if (groupByCount == 0) {
+            sql.append(" GROUP BY ");
+        } else {
+            sql.append(", ");
+        }
+        sql.append(String.join(", ", columns));
+        groupByCount++;
         return this;
     }
 
@@ -275,6 +411,25 @@ public class DynamicQuery {
         if (joinParams != null) {
             params.addAll(List.of(joinParams));
         }
+        return this;
+    }
+
+    /**
+     * RIGHT JOIN
+     */
+    public DynamicQuery rightJoin(String table, String onClause, Object... joinParams) {
+        sql.append(" RIGHT JOIN ").append(table).append(" ON ").append(onClause);
+        if (joinParams != null) {
+            params.addAll(List.of(joinParams));
+        }
+        return this;
+    }
+
+    /**
+     * CROSS JOIN
+     */
+    public DynamicQuery crossJoin(String table) {
+        sql.append(" CROSS JOIN ").append(table);
         return this;
     }
 
@@ -380,10 +535,17 @@ public class DynamicQuery {
     // ======================== 内部方法 ========================
 
     private void appendWhere() {
+        String current = sql.toString();
         if (!whereAppended) {
             sql.append(" WHERE ");
             whereAppended = true;
-        } else {
+        } else if (afterOrOpenParen) {
+            // OR 组内的第一个条件，紧跟在 "(" 之后，不加任何连接符
+            afterOrOpenParen = false;
+        } else if (inOrGroup && current.endsWith(" OR ")) {
+            // 紧跟在 " OR " 后面的条件，不需要额外分隔符
+            // " OR " 已经由 orCondition() 添加
+        } else if (!inOrGroup) {
             sql.append(" AND ");
         }
     }

@@ -14,7 +14,7 @@
     <artifactId>zerx-spring-data</artifactId>
     <packaging>jar</packaging>
     <name>Zerx Spring Data</name>
-    <description>数据访问增强 — 基于 Spring Data JDBC 提供聚合根基类、审计、逻辑删除、DynamicQuery 链式构建器、多数据源、慢SQL检测</description>
+    <description>数据访问增强 — 基于 Spring Data JDBC 提供聚合根基类、审计、归档机制、乐观锁、DynamicQuery 链式构建器、数据权限、慢SQL检测</description>
 
     <dependencies>
         <!-- Spring Data JDBC -->

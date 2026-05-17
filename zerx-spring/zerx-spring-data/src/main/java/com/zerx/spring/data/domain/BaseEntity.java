@@ -5,27 +5,29 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.annotation.ReadOnlyProperty;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
 /**
  * 聚合根基类。
  * <p>
- * 所有 Spring Data JDBC 实体必须继承此类，提供统一的 ID 策略、审计字段和逻辑删除支持。
- * 使用 Spring Data 注解实现自动审计填充，使用 {@link ReadOnlyProperty} 标记逻辑删除字段
- * 不直接映射到 INSERT/UPDATE SQL。
+ * 所有 Spring Data JDBC 实体必须继承此类，提供统一的 ID 策略、审计字段和乐观锁支持。
+ * 使用 Spring Data 注解实现自动审计填充和版本控制。
  * </p>
  *
  * <h3>建模规范：</h3>
  * <ul>
- *     <li>实体类名与表名遵循 UpperCamelCase → snake_case 自动映射（可通过 {@code @Table} 显式指定）</li>
+ *     <li>实体类名与表名遵循 UpperCamelCase → snake_case 自动映射（可通过 {@link Table} 显式指定）</li>
  *     <li>子实体（非聚合根）不继承 BaseEntity，使用普通 POJO + {@code @MappedCollection}</li>
  *     <li>值对象使用 JDK 21 record，通过 {@code @MappedCollection} 嵌入聚合根</li>
  *     <li>避免 Lombok {@code @Data}，推荐 {@code @Getter} + {@code @Setter}</li>
+ *     <li>删除操作通过归档机制管理，主表不保留已删除数据，避免大表查询性能劣化</li>
  * </ul>
  *
  * @author zerx
+ * @see com.zerx.spring.data.archive.Archiver
  */
 public abstract class BaseEntity {
 
@@ -60,28 +62,15 @@ public abstract class BaseEntity {
     private Long updateBy;
 
     /**
-     * 逻辑删除标记。不映射到 INSERT/UPDATE，由逻辑删除机制控制。
+     * 乐观锁版本号。
+     * <p>
+     * 每次更新时自动递增，用于检测并发修改冲突。
+     * Spring Data JDBC 在 UPDATE 时自动追加 {@code WHERE version = ?} 条件，
+     * 当版本不匹配时抛出 {@link org.springframework.dao.OptimisticLockingFailureException}。
+     * </p>
      */
-    @ReadOnlyProperty
-    private Boolean deleted = false;
-
-    // ======================== 行为方法 ========================
-
-    /**
-     * 标记为已删除。由 SoftDeleteCallback 触发，业务代码不应直接调用。
-     */
-    public void markDeleted() {
-        this.deleted = true;
-    }
-
-    /**
-     * 判断是否已删除
-     *
-     * @return 已删除返回 true
-     */
-    public boolean isDeleted() {
-        return Boolean.TRUE.equals(this.deleted);
-    }
+    @Version
+    private Long version;
 
     // ======================== getter/setter ========================
 
@@ -125,11 +114,11 @@ public abstract class BaseEntity {
         this.updateBy = updateBy;
     }
 
-    public Boolean getDeleted() {
-        return deleted;
+    public Long getVersion() {
+        return version;
     }
 
-    public void setDeleted(Boolean deleted) {
-        this.deleted = deleted;
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

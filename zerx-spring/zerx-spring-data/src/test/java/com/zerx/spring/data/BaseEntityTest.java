@@ -34,8 +34,7 @@ class BaseEntityTest {
         assertNull(entity.getUpdateTime());
         assertNull(entity.getCreateBy());
         assertNull(entity.getUpdateBy());
-        assertFalse(entity.isDeleted());
-        assertEquals(false, entity.getDeleted());
+        assertNull(entity.getVersion());
     }
 
     @Test
@@ -48,6 +47,7 @@ class BaseEntityTest {
         entity.setUpdateTime(now);
         entity.setCreateBy(100L);
         entity.setUpdateBy(200L);
+        entity.setVersion(1L);
         entity.setName("test");
         entity.setEmail("test@example.com");
 
@@ -56,25 +56,35 @@ class BaseEntityTest {
         assertEquals(now, entity.getUpdateTime());
         assertEquals(100L, entity.getCreateBy());
         assertEquals(200L, entity.getUpdateBy());
+        assertEquals(1L, entity.getVersion());
         assertEquals("test", entity.getName());
         assertEquals("test@example.com", entity.getEmail());
     }
 
     @Test
-    void markDeleted() {
+    void versionIncrement() {
         var entity = new TestEntity();
-        assertFalse(entity.isDeleted());
+        assertNull(entity.getVersion());
 
-        entity.markDeleted();
-        assertTrue(entity.isDeleted());
-        assertTrue(entity.getDeleted());
+        entity.setVersion(0L);
+        assertEquals(0L, entity.getVersion());
+
+        entity.setVersion(1L);
+        assertEquals(1L, entity.getVersion());
     }
 
     @Test
-    void isDeleted_handlesNull() {
-        var entity = new TestEntity();
-        entity.setDeleted(null);
+    void hasVersionAnnotation() throws NoSuchFieldException {
+        // 验证 @Version 注解存在于 version 字段
+        var field = BaseEntity.class.getDeclaredField("version");
+        assertNotNull(field.getAnnotation(org.springframework.data.annotation.Version.class),
+                "version field should have @Version annotation");
+    }
 
-        assertFalse(entity.isDeleted()); // Boolean.TRUE.equals(null) = false
+    @Test
+    void hasIdAnnotation() throws NoSuchFieldException {
+        var field = BaseEntity.class.getDeclaredField("id");
+        assertNotNull(field.getAnnotation(org.springframework.data.annotation.Id.class),
+                "id field should have @Id annotation");
     }
 }

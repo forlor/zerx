@@ -1,9 +1,9 @@
 package com.zerx.spring.data;
 
 import com.zerx.spring.data.autoconfigure.ZerxDataAutoConfiguration;
-import com.zerx.spring.data.config.CamelCaseNamingStrategy;
+import com.zerx.spring.data.archive.ArchiveCallback;
+import com.zerx.spring.data.archive.ArchiveProperties;
 import com.zerx.spring.data.config.SlowSqlInterceptor;
-import com.zerx.spring.data.config.SoftDeleteCallback;
 import com.zerx.spring.data.properties.ZerxDataProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -13,7 +13,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
-import org.springframework.data.relational.core.mapping.NamingStrategy;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
@@ -38,8 +37,10 @@ class ZerxDataAutoConfigurationTest {
         contextRunner.run(context -> {
             assertThat(context).hasSingleBean(ZerxDataAutoConfiguration.ZerxSlowSqlLogger.class);
             assertThat(context).hasSingleBean(SlowSqlInterceptor.class);
-            assertThat(context).hasSingleBean(SoftDeleteCallback.class);
             assertThat(context).hasSingleBean(AuditorAware.class);
+            // SoftDeleteCallback 已移除
+            assertThat(context).doesNotHaveBean(
+                    "com.zerx.spring.data.config.SoftDeleteCallback");
         });
     }
 
@@ -75,17 +76,38 @@ class ZerxDataAutoConfigurationTest {
     }
 
     @Test
-    void softDeleteCallback_registeredByDefault() {
+    void archiveCallback_notRegisteredByDefault() {
         contextRunner.run(context -> {
-            assertThat(context).hasSingleBean(SoftDeleteCallback.class);
+            assertThat(context).doesNotHaveBean(ArchiveCallback.class);
         });
     }
 
     @Test
-    void softDeleteCallback_disabled_whenPropertyFalse() {
-        contextRunner.withPropertyValues("zerx.data.logic-delete.enabled=false")
+    void archiveCallback_registeredWhenEnabled() {
+        contextRunner.withPropertyValues("zerx.data.archive.enabled=true")
                 .run(context -> {
-                    assertThat(context).doesNotHaveBean(SoftDeleteCallback.class);
+                    assertThat(context).hasSingleBean(ArchiveCallback.class);
+                    assertThat(context).hasSingleBean(ArchiveProperties.class);
+                    // ArchiveService requires JdbcTemplate, verify it's NOT created
+                    // when no Archiver beans are registered
+                    assertThat(context).doesNotHaveBean(
+                            "com.zerx.spring.data.archive.ArchiveService");
+                });
+    }
+
+    @Test
+    void archiveProperties_loaded() {
+        contextRunner.withPropertyValues(
+                        "zerx.data.archive.enabled=false",
+                        "zerx.data.archive.table-suffix=_archived",
+                        "zerx.data.archive.entities[0]=com.example.User",
+                        "zerx.data.archive.retain-days=180")
+                .run(context -> {
+                    ArchiveProperties props = context.getBean(ArchiveProperties.class);
+                    assertThat(props.isEnabled()).isFalse();
+                    assertThat(props.getTableSuffix()).isEqualTo("_archived");
+                    assertThat(props.getEntities()).contains("com.example.User");
+                    assertThat(props.getRetainDays()).isEqualTo(180);
                 });
     }
 

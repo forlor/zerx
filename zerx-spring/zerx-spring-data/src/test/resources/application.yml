@@ -1,10 +1,8 @@
 zerx:
   data:
-    logic-delete:
+    archive:
       enabled: true
-      field: deleted
-      deleted-value: 1
-      not-deleted-value: 0
+      entities: []
     slow-sql:
       enabled: true
       threshold: 1000ms
