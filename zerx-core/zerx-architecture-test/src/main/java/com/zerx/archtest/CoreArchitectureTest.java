@@ -5,12 +5,9 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestFactory;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -142,7 +139,7 @@ public class CoreArchitectureTest extends AbstractArchitectureTest {
             // 后续如果拆分内部实现，此规则会自动生效
             JavaClasses classes = getProjectClasses();
             List<JavaClass> internalClasses = classes.stream()
-                    .filter(c -> c.getPackage().contains("common.util.internal"))
+                    .filter(c -> c.getPackage().getName().contains("common.util.internal"))
                     .toList();
 
             if (!internalClasses.isEmpty()) {
@@ -173,7 +170,7 @@ public class CoreArchitectureTest extends AbstractArchitectureTest {
                     .filter(c -> c.getPackage().getName().equals("com.zerx.common.util"))
                     .filter(c -> !c.isInterface())
                     .filter(c -> !c.isEnum())
-                    .filter(c -> !c.isAbstract())
+                    .filter(c -> !c.getModifiers().contains(JavaModifier.ABSTRACT))
                     .filter(c -> c.getModifiers().contains(JavaModifier.PUBLIC))
                     .toList();
 
@@ -362,12 +359,6 @@ public class CoreArchitectureTest extends AbstractArchitectureTest {
         @Test
         @DisplayName("禁止使用 System.out 或 System.err")
         void should_not_use_system_out_or_err() {
-            ArchRule rule = noClasses()
-                    .that().resideInAPackage("com.zerx..")
-                    .should().accessClassesThat()
-                    .areAssignableTo(System.class)
-                    .getFields("out", "err");
-
             // ArchUnit 不直接支持字段访问检查，用依赖检查替代
             JavaClasses classes = getProjectClasses();
             List<String> violatingClasses = classes.stream()

@@ -16,16 +16,6 @@
     <name>Zerx Core BOM</name>
     <description>Zerx Core Bill of Materials — 统一管理所有 core 模块及常用第三方库的版本号</description>
 
-    <properties>
-        <!-- Spring Boot 3.x（预留，Spring 模块启用时取消注释） -->
-        <!-- <spring-boot.version>3.3.5</spring-boot.version> -->
-
-        <!-- 常用第三方库版本（Spring 模块启用后迁移至此集中管理） -->
-        <!-- <mapstruct.version>1.6.3</mapstruct.version> -->
-        <!-- <mybatis-plus.version>3.5.9</mybatis-plus.version> -->
-        <!-- <hutool.version>5.8.34</hutool.version> -->
-    </properties>
-
     <dependencyManagement>
         <dependencies>
             <!-- ======================== zerx 内部模块 ======================== -->
@@ -43,9 +33,7 @@
                 <type>test-jar</type>
             </dependency>
 
-            <!-- ======================== Spring Boot BOM（预留） ======================== -->
-            <!--
-            后续创建 Spring Boot 模块时，取消以下注释以统一管理 Spring 生态版本：
+            <!-- ======================== Spring Boot BOM ======================== -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -53,7 +41,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            -->
         </dependencies>
     </dependencyManagement>
 </project>

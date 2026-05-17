@@ -13,6 +13,7 @@
 
     <modules>
         <module>zerx-core</module>
+        <module>zerx-spring</module>
     </modules>
 
     <properties>
@@ -23,10 +24,23 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <!-- Spring Boot -->
+        <spring-boot.version>3.3.5</spring-boot.version>
+
         <!-- 依赖版本 -->
         <junit.version>5.10.3</junit.version>
         <slf4j.version>2.0.13</slf4j.version>
         <archunit.version>1.3.0</archunit.version>
+
+        <!-- Spring 生态第三方库版本 -->
+        <springdoc.version>2.6.0</springdoc.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <caffeine.version>3.1.8</caffeine.version>
+        <redisson.version>3.35.0</redisson.version>
+        <easyexcel.version>4.0.3</easyexcel.version>
+        <bucket4j.version>8.7.0</bucket4j.version>
+        <resilience4j.version>2.2.0</resilience4j.version>
+        <micrometer.version>1.13.0</micrometer.version>
 
         <!-- 插件版本 -->
         <maven-checkstyle-plugin.version>3.3.1</maven-checkstyle-plugin.version>
@@ -37,10 +51,39 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Zerx 内部模块 -->
+            <!-- ======================== Spring Boot BOM ======================== -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- ======================== Zerx 内部模块 ======================== -->
             <dependency>
                 <groupId>com.zerx</groupId>
                 <artifactId>zerx-common</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-spring-web</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-spring-data</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-spring-cache</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-spring-security</artifactId>
                 <version>${zerx.version}</version>
             </dependency>
 

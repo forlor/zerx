@@ -1,0 +1,8 @@
+zerx:
+  web:
+    response-wrap-enabled: true
+    response-wrap-exclude-packages:
+      - org.springdoc
+      - org.springframework.boot.actuator
+    cors:
+      enabled: false

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zerx</groupId>
+        <artifactId>zerx-parent</artifactId>
+        <version>${zerx.version}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zerx-spring</artifactId>
+    <packaging>pom</packaging>
+    <name>Zerx Spring</name>
+    <description>Zerx Spring 框架封装层 — 对 Spring Boot 自身能力的实用性增强，消除样板代码，统一编码规范</description>
+
+    <modules>
+        <module>zerx-spring-web</module>
+        <module>zerx-spring-data</module>
+        <module>zerx-spring-cache</module>
+        <module>zerx-spring-security</module>
+    </modules>
+
+    <dependencies>
+        <!-- zerx-common：Spring 模块的基础依赖 -->
+        <dependency>
+            <groupId>com.zerx</groupId>
+            <artifactId>zerx-common</artifactId>
+        </dependency>
+    </dependencies>
+</project>

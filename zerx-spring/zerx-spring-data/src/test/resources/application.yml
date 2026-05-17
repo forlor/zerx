@@ -1,0 +1,18 @@
+zerx:
+  data:
+    logic-delete:
+      enabled: true
+      field: deleted
+      deleted-value: 1
+      not-deleted-value: 0
+    slow-sql:
+      enabled: true
+      threshold: 1000ms
+      log-params: true
+    single-query-loading: true
+    naming-strategy: SNAKE_CASE
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver

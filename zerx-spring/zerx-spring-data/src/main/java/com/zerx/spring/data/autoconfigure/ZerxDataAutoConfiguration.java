@@ -1,0 +1,159 @@
+package com.zerx.spring.data.autoconfigure;
+
+import com.zerx.spring.data.audit.ZerxAuditorAware;
+import com.zerx.spring.data.config.CamelCaseNamingStrategy;
+import com.zerx.spring.data.config.SlowSqlInterceptor;
+import com.zerx.spring.data.config.SoftDeleteCallback;
+import com.zerx.spring.data.properties.ZerxDataProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
+import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
+import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
+import org.springframework.data.relational.core.mapping.DefaultNamingStrategy;
+import org.springframework.data.relational.core.mapping.NamingStrategy;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.Optional;
+
+/**
+ * Zerx 数据访问层自动配置。
+ * <p>
+ * 自动配置 Single Query Loading、慢 SQL 检测、命名策略、逻辑删除回调和审计等数据层通用能力。
+ * 通过 {@code zerx.data.*} 前缀配置参数。
+ * </p>
+ *
+ * @author zerx
+ */
+@AutoConfiguration
+@ConditionalOnClass({JdbcTemplate.class, JdbcAggregateTemplate.class})
+@EnableConfigurationProperties(ZerxDataProperties.class)
+@EnableJdbcAuditing
+public class ZerxDataAutoConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(ZerxDataAutoConfiguration.class);
+
+    /**
+     * 配置 JdbcMappingContext，根据 {@code zerx.data.naming-strategy} 选择命名策略，
+     * 并根据 {@code zerx.data.single-query-loading} 开启/关闭 Single Query Loading。
+     * <p>
+     * 默认使用 SNAKE_CASE（Spring Data JDBC 标准），可切换为 CAMEL_CASE 保持字段名原样。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public JdbcMappingContext jdbcMappingContext(ZerxDataProperties properties) {
+        NamingStrategy namingStrategy = resolveNamingStrategy(properties.getNamingStrategy());
+        JdbcMappingContext context = new JdbcMappingContext(namingStrategy);
+        if (properties.isSingleQueryLoading()) {
+            context.setSingleQueryLoadingEnabled(true);
+            log.info("[Zerx] Single Query Loading enabled — N+1 queries will be resolved");
+        }
+        return context;
+    }
+
+    /**
+     * 注册 SlowSqlInterceptor 作为 BeanPostProcessor，自动代理所有 JdbcTemplate 实例，
+     * 在 SQL 执行前后记录耗时，超过阈值的 SQL 以 WARN 级别输出。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "zerx.data.slow-sql", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    public static SlowSqlInterceptor slowSqlInterceptor(ZerxDataProperties properties) {
+        log.info("[Zerx] Slow SQL interceptor enabled — threshold: {}ms",
+                properties.getSlowSql().getThreshold().toMillis());
+        return new SlowSqlInterceptor(properties);
+    }
+
+    /**
+     * 慢 SQL 检测日志提示。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "zerx.data.slow-sql", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    public ZerxSlowSqlLogger slowSqlLogger(ZerxDataProperties properties) {
+        log.info("[Zerx] Slow SQL detection enabled — threshold: {}ms",
+                properties.getSlowSql().getThreshold().toMillis());
+        return new ZerxSlowSqlLogger(properties);
+    }
+
+    /**
+     * 注册 SoftDeleteCallback，在实体持久化前为新建实体设置 {@code deleted = false} 默认值。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "zerx.data.logic-delete", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    public SoftDeleteCallback softDeleteCallback(ZerxDataProperties properties) {
+        return new SoftDeleteCallback(properties);
+    }
+
+    /**
+     * 默认 AuditorAware（无操作），当 Web 模块不可用时使用。
+     */
+    @Bean
+    @ConditionalOnMissingBean(AuditorAware.class)
+    AuditorAware<Long> zerxDefaultAuditorAware() {
+        return Optional::empty;
+    }
+
+    /**
+     * 根据配置枚举解析 NamingStrategy 实例。
+     *
+     * @param strategy 配置的命名策略
+     * @return 对应的 NamingStrategy 实例
+     */
+    private NamingStrategy resolveNamingStrategy(ZerxDataProperties.NamingStrategy strategy) {
+        return switch (strategy) {
+            case SNAKE_CASE -> DefaultNamingStrategy.INSTANCE;
+            case CAMEL_CASE -> new CamelCaseNamingStrategy();
+        };
+    }
+
+    /**
+     * Web 模块可用时，使用 ZerxAuditorAware 从 RequestContext 获取当前用户 ID。
+     * <p>
+     * 该内部配置通过 {@link ConditionalOnClass} 确保
+     * {@code com.zerx.spring.web.context.RequestContext} 在 classpath 上时才激活。
+     * 由于 {@link org.springframework.boot.autoconfigure.AutoConfiguration @AutoConfiguration}
+     * 不做组件扫描，ZerxAuditorAware 必须在此显式注册。
+     * </p>
+     */
+    @Configuration
+    @ConditionalOnClass(name = "com.zerx.spring.web.context.RequestContext")
+    static class RequestContextAuditingConfig {
+
+        @Bean
+        AuditorAware<Long> zerxRequestContextAuditorAware() {
+            return new ZerxAuditorAware();
+        }
+    }
+
+    /**
+     * 慢 SQL 日志记录器（标记 Bean，实际通过 JdbcTemplate 拦截实现）
+     */
+    public static class ZerxSlowSqlLogger {
+
+        private final ZerxDataProperties properties;
+
+        public ZerxSlowSqlLogger(ZerxDataProperties properties) {
+            this.properties = properties;
+        }
+
+        public boolean isSlow(long executionTimeMs) {
+            return executionTimeMs >= properties.getSlowSql().getThreshold().toMillis();
+        }
+
+        public long getThresholdMs() {
+            return properties.getSlowSql().getThreshold().toMillis();
+        }
+    }
+}
