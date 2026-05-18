@@ -3,8 +3,6 @@ package com.zerx.spring.data.autoconfigure;
 import com.zerx.spring.data.archive.ArchiveCallback;
 import com.zerx.spring.data.archive.ArchiveProperties;
 import com.zerx.spring.data.archive.ArchiveService;
-import com.zerx.spring.data.logicaldelete.LogicalDeleteCallback;
-import com.zerx.spring.data.logicaldelete.LogicalDeleteService;
 import com.zerx.spring.data.audit.ZerxAuditorAware;
 import com.zerx.spring.data.config.CamelCaseNamingStrategy;
 import com.zerx.spring.data.config.SlowSqlInterceptor;
@@ -24,7 +22,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
@@ -159,10 +156,9 @@ public class ZerxDataAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(DataSource.class)
-    public ZerxRepositoryHelper zerxRepositoryHelper(DataSource dataSource,
-                                                      @org.springframework.lang.Nullable LogicalDeleteService logicalDeleteService) {
+    public ZerxRepositoryHelper zerxRepositoryHelper(DataSource dataSource) {
         log.info("[Zerx] ZerxRepositoryHelper registered — enhanced repository capabilities available");
-        return new ZerxRepositoryHelper(dataSource, logicalDeleteService);
+        return new ZerxRepositoryHelper(dataSource);
     }
 
     /**
@@ -178,36 +174,6 @@ public class ZerxDataAutoConfiguration {
     public BatchOperations batchOperations(DataSource dataSource) {
         log.info("[Zerx] BatchOperations registered — JDBC batch insert/update/delete available");
         return new BatchOperations(dataSource);
-    }
-
-    /**
-     * 注册逻辑删除服务。
-     * <p>
-     * 为标注 {@link com.zerx.spring.data.logicaldelete.LogicalDelete @LogicalDelete} 的实体
-     * 提供逻辑删除、恢复、物理删除等操作。当 DataSource 可用时自动注册。
-     * </p>
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(DataSource.class)
-    public LogicalDeleteService logicalDeleteService(DataSource dataSource) {
-        log.info("[Zerx] LogicalDeleteService registered — logical delete capability available");
-        return new LogicalDeleteService(dataSource);
-    }
-
-    /**
-     * 注册逻辑删除安全回调。
-     * <p>
-     * 当有人误对逻辑删除实体调用 repository.delete() 时，发出 WARN 日志提醒。
-     * 当 DataSource 可用时自动注册。
-     * </p>
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(DataSource.class)
-    public LogicalDeleteCallback logicalDeleteCallback() {
-        log.info("[Zerx] LogicalDeleteCallback registered — safety net for accidental physical deletes");
-        return new LogicalDeleteCallback();
     }
 
     /**

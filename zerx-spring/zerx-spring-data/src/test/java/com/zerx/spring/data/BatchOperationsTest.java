@@ -10,6 +10,7 @@ import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -277,5 +278,96 @@ class BatchOperationsTest {
 
         Long count = customJdbc.queryForObject("SELECT COUNT(*) FROM test_batch_custom", Long.class);
         assertEquals(120L, count);
+    }
+
+    // ======================== 实体感知 API 测试 ========================
+
+    /**
+     * 测试用实体类，模拟 @Table 注解场景。
+     */
+    @org.springframework.data.relational.core.mapping.Table("test_batch_user")
+    static class TestUserEntity extends com.zerx.spring.data.domain.BaseEntity {
+        private String username;
+        private String email;
+        private Integer status;
+
+        public TestUserEntity() {}
+        public TestUserEntity(String username, String email, Integer status) {
+            this.username = username;
+            this.email = email;
+            this.status = status;
+        }
+    }
+
+    @Test
+    void batchInsert_byEntityClass() {
+        List<Object[]> rows = List.of(
+                new Object[]{"entityUser1", "e1@test.com", 1},
+                new Object[]{"entityUser2", "e2@test.com", 0}
+        );
+
+        int[] result = batchOperations.batchInsert(TestUserEntity.class,
+                List.of("username", "email", "status"), rows);
+
+        assertEquals(2, result.length);
+        for (int count : result) {
+            assertEquals(1, count);
+        }
+
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM test_batch_user", Long.class);
+        assertEquals(2L, count);
+    }
+
+    @Test
+    void batchInsertAndReturnKeys_returnsGeneratedIds() {
+        List<Object[]> rows = List.of(
+                new Object[]{"keyUser1", "k1@test.com", 1},
+                new Object[]{"keyUser2", "k2@test.com", 0},
+                new Object[]{"keyUser3", "k3@test.com", 1}
+        );
+
+        List<Map<String, Object>> keys = batchOperations.batchInsertAndReturnKeys(TestUserEntity.class,
+                List.of("username", "email", "status"), rows);
+
+        assertEquals(3, keys.size());
+        // H2 AUTO_INCREMENT should return generated "id" key
+        for (Map<String, Object> key : keys) {
+            assertNotNull(key.get("ID"), "Generated key 'ID' should not be null");
+        }
+
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM test_batch_user", Long.class);
+        assertEquals(3L, count);
+    }
+
+    @Test
+    void batchInsertAndReturnKeys_largeBatch() {
+        List<Object[]> rows = new ArrayList<>(500);
+        for (int i = 0; i < 500; i++) {
+            rows.add(new Object[]{"large_" + i, "large" + i + "@test.com", 1});
+        }
+
+        List<Map<String, Object>> keys = batchOperations.batchInsertAndReturnKeys(TestUserEntity.class,
+                List.of("username", "email", "status"), rows);
+
+        assertEquals(500, keys.size());
+        for (Map<String, Object> key : keys) {
+            assertNotNull(key.get("ID"), "Generated key should not be null for large batch");
+        }
+    }
+
+    @Test
+    void batchInsert_nullEntityClass_throwsException() {
+        List<Object[]> rows = new ArrayList<>();
+        rows.add(new Object[]{"test", "test@test.com", 1});
+        assertThrows(IllegalArgumentException.class, () ->
+                batchOperations.batchInsert((Class<?>) null, List.of("username"), rows));
+    }
+
+    @Test
+    void batchInsertAndReturnKeys_nullEntityClass_throwsException() {
+        List<Object[]> rows = new ArrayList<>();
+        rows.add(new Object[]{"test", "test@test.com", 1});
+        assertThrows(IllegalArgumentException.class, () ->
+                batchOperations.batchInsertAndReturnKeys((Class<?>) null, List.of("username"), rows));
     }
 }
