@@ -1,6 +1,7 @@
 package com.zerx.spring.security.config;
 
-import com.zerx.spring.cache.ops.CacheOps;
+import com.zerx.spring.cache.CacheOps;
+import com.zerx.spring.cache.CacheStore;
 import com.zerx.spring.security.props.ZerxSecurityProperties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -153,6 +154,11 @@ class ZerxSecurityConfigurationTest {
         @Override
         public boolean hasKey(String key) {
             return false;
+        }
+
+        @Override
+        public CacheStore getStore() {
+            return null;
         }
     }
 }

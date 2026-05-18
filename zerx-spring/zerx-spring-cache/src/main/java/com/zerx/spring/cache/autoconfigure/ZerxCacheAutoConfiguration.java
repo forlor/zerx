@@ -1,11 +1,15 @@
 package com.zerx.spring.cache.autoconfigure;
 
+import com.zerx.spring.cache.CacheOps;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.aspect.ZerxCacheAspect;
 import com.zerx.spring.cache.config.CacheInvalidationListener;
-import com.zerx.spring.cache.ops.CacheOps;
-import com.zerx.spring.cache.ops.CaffeineCacheOps;
-import com.zerx.spring.cache.ops.MultilevelCacheOps;
-import com.zerx.spring.cache.ops.RedisCacheOps;
+import com.zerx.spring.cache.manager.ZerxCacheManager;
+import com.zerx.spring.cache.ops.CacheOpsImpl;
 import com.zerx.spring.cache.properties.ZerxCacheProperties;
+import com.zerx.spring.cache.store.CaffeineCacheStore;
+import com.zerx.spring.cache.store.MultilevelCacheStore;
+import com.zerx.spring.cache.store.RedisCacheStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -25,11 +29,20 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 /**
  * Zerx 缓存自动配置。
  * <p>
- * 根据 {@code zerx.cache.type} 配置自动注册对应的 {@link CacheOps} 实现：
+ * 根据 {@code zerx.cache.type} 配置自动注册对应实现：
  * <ul>
  *     <li>{@code CAFFEINE} — 本地缓存（默认）</li>
  *     <li>{@code REDIS} — Redis 分布式缓存</li>
  *     <li>{@code MULTILEVEL} — 多级缓存（L1 Caffeine + L2 Redis）</li>
+ * </ul>
+ * </p>
+ * <p>
+ * 自动注册：
+ * <ul>
+ *     <li>{@link CacheStore} — 底层 KV 存储实现</li>
+ *     <li>{@link CacheOps} — Cache-Aside 高级封装（基于 CacheStore）</li>
+ *     <li>{@link ZerxCacheManager} — Spring Cache 抽象适配</li>
+ *     <li>{@link ZerxCacheAspect} — 声明式注解 AOP 切面</li>
  * </ul>
  * </p>
  *
@@ -41,31 +54,22 @@ import org.springframework.data.redis.serializer.RedisSerializer;
         havingValue = "true", matchIfMissing = true)
 public class ZerxCacheAutoConfiguration {
 
-    /**
-     * 注册 Caffeine 本地缓存的 CacheOps 实现。
-     * <p>
-     * 当 {@code zerx.cache.type=CAFFEINE} 或未指定时激活（matchIfMissing）。
-     * </p>
-     */
+    // ======================== Caffeine 配置 ========================
+
     @Configuration
     @ConditionalOnProperty(prefix = "zerx.cache", name = "type",
             havingValue = "CAFFEINE", matchIfMissing = true)
     static class CaffeineCacheConfiguration {
 
         @Bean
-        @ConditionalOnMissingBean(CacheOps.class)
-        public CacheOps caffeineCacheOps(ZerxCacheProperties properties) {
-            return new CaffeineCacheOps(properties);
+        @ConditionalOnMissingBean(CacheStore.class)
+        public CacheStore caffeineCacheStore(ZerxCacheProperties properties) {
+            return new CaffeineCacheStore(properties);
         }
     }
 
-    /**
-     * Redis 分布式缓存的 CacheOps 实现。
-     * <p>
-     * 当 {@code zerx.cache.type=REDIS} 且 Redis 在 classpath 时激活。
-     * 自动创建带 JSON 序列化的 {@link RedisTemplate}。
-     * </p>
-     */
+    // ======================== Redis 配置 ========================
+
     @Configuration
     @ConditionalOnProperty(prefix = "zerx.cache", name = "type", havingValue = "REDIS")
     @ConditionalOnClass(name = "org.springframework.data.redis.core.StringRedisTemplate")
@@ -73,32 +77,31 @@ public class ZerxCacheAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "zerxCacheRedisTemplate")
-        public RedisTemplate<String, Object> zerxCacheRedisTemplate(RedisConnectionFactory connectionFactory) {
+        public RedisTemplate<String, Object> zerxCacheRedisTemplate(
+                RedisConnectionFactory connectionFactory,
+                ZerxCacheProperties properties) {
             RedisTemplate<String, Object> template = new RedisTemplate<>();
             template.setConnectionFactory(connectionFactory);
             template.setKeySerializer(RedisSerializer.string());
             template.setHashKeySerializer(RedisSerializer.string());
-            template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-            template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+
+            RedisSerializer<Object> valueSerializer = resolveValueSerializer(properties);
+            template.setValueSerializer(valueSerializer);
+            template.setHashValueSerializer(valueSerializer);
             template.afterPropertiesSet();
             return template;
         }
 
         @Bean
-        @ConditionalOnMissingBean(CacheOps.class)
-        public CacheOps redisCacheOps(RedisTemplate<String, Object> redisTemplate,
-                                       ZerxCacheProperties properties) {
-            return new RedisCacheOps(redisTemplate, properties);
+        @ConditionalOnMissingBean(CacheStore.class)
+        public CacheStore redisCacheStore(RedisTemplate<String, Object> redisTemplate,
+                                          ZerxCacheProperties properties) {
+            return new RedisCacheStore(redisTemplate, properties);
         }
     }
 
-    /**
-     * 多级缓存配置（L1 Caffeine + L2 Redis）。
-     * <p>
-     * 当 {@code zerx.cache.type=MULTILEVEL} 且 Redis 在 classpath 时激活。
-     * 包含 Redis Pub/Sub 失效监听，保证多节点 L1 缓存一致性。
-     * </p>
-     */
+    // ======================== 多级缓存配置 ========================
+
     @Configuration
     @ConditionalOnProperty(prefix = "zerx.cache", name = "type", havingValue = "MULTILEVEL")
     @ConditionalOnClass(name = "org.springframework.data.redis.core.StringRedisTemplate")
@@ -106,52 +109,110 @@ public class ZerxCacheAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "zerxCacheRedisTemplate")
-        public RedisTemplate<String, Object> zerxCacheRedisTemplate(RedisConnectionFactory connectionFactory) {
+        public RedisTemplate<String, Object> zerxCacheRedisTemplate(
+                RedisConnectionFactory connectionFactory,
+                ZerxCacheProperties properties) {
             RedisTemplate<String, Object> template = new RedisTemplate<>();
             template.setConnectionFactory(connectionFactory);
             template.setKeySerializer(RedisSerializer.string());
             template.setHashKeySerializer(RedisSerializer.string());
-            template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-            template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+
+            RedisSerializer<Object> valueSerializer = resolveValueSerializer(properties);
+            template.setValueSerializer(valueSerializer);
+            template.setHashValueSerializer(valueSerializer);
             template.afterPropertiesSet();
             return template;
         }
 
-        @Bean("l1Cache")
-        @ConditionalOnMissingBean(name = "l1Cache")
-        public CacheOps l1Cache(ZerxCacheProperties properties) {
-            return new CaffeineCacheOps(properties);
+        @Bean("l1CacheStore")
+        @ConditionalOnMissingBean(name = "l1CacheStore")
+        public CacheStore l1CacheStore(ZerxCacheProperties properties) {
+            return new CaffeineCacheStore(properties);
         }
 
-        @Bean("l2Cache")
-        @ConditionalOnMissingBean(name = "l2Cache")
-        public CacheOps l2Cache(RedisTemplate<String, Object> redisTemplate,
-                                ZerxCacheProperties properties) {
-            return new RedisCacheOps(redisTemplate, properties);
+        @Bean("l2CacheStore")
+        @ConditionalOnMissingBean(name = "l2CacheStore")
+        public CacheStore l2CacheStore(RedisTemplate<String, Object> redisTemplate,
+                                       ZerxCacheProperties properties) {
+            return new RedisCacheStore(redisTemplate, properties);
         }
 
         @Bean
-        @ConditionalOnMissingBean(CacheOps.class)
-        public CacheOps multilevelCacheOps(@Qualifier("l1Cache") CacheOps l1,
-                                           @Qualifier("l2Cache") CacheOps l2,
-                                           StringRedisTemplate stringRedisTemplate,
-                                           ZerxCacheProperties properties) {
-            return new MultilevelCacheOps(l1, l2, stringRedisTemplate, properties);
+        @ConditionalOnMissingBean(CacheStore.class)
+        public CacheStore multilevelCacheStore(
+                @Qualifier("l1CacheStore") CacheStore l1,
+                @Qualifier("l2CacheStore") CacheStore l2,
+                StringRedisTemplate stringRedisTemplate,
+                ZerxCacheProperties properties) {
+            return new MultilevelCacheStore(l1, l2, stringRedisTemplate, properties);
         }
 
         /**
-         * 注册 Redis Pub/Sub 消息监听容器，用于接收其他节点发布的缓存失效消息。
+         * 注册 Redis Pub/Sub 消息监听容器。
+         * <p>
+         * 监听 {@code zerx:cache:invalidate:*} 频道，收到消息后清除本地 L1 缓存。
+         * </p>
          */
         @Bean
         @ConditionalOnMissingBean(name = "cacheInvalidationContainer")
         public RedisMessageListenerContainer cacheInvalidationContainer(
                 RedisConnectionFactory connectionFactory,
-                @Qualifier("l1Cache") CacheOps l1Cache) {
+                @Qualifier("l1CacheStore") CacheStore l1Cache) {
             RedisMessageListenerContainer container = new RedisMessageListenerContainer();
             container.setConnectionFactory(connectionFactory);
             CacheInvalidationListener listener = new CacheInvalidationListener(l1Cache);
-            container.addMessageListener(listener, new ChannelTopic("zerx:cache:invalidate:*"));
+            container.addMessageListener(listener,
+                    new ChannelTopic(com.zerx.spring.cache.CacheConstants.INVALIDATION_CHANNEL_PREFIX + "*"));
             return container;
         }
+    }
+
+    // ======================== 通用 Bean ========================
+
+    /**
+     * CacheOps — Cache-Aside 高级封装。
+     * <p>
+     * 在所有缓存类型下都可用，包装 CacheStore 提供防穿透/防击穿能力。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(CacheOps.class)
+    public CacheOps cacheOps(CacheStore cacheStore, ZerxCacheProperties properties) {
+        return new CacheOpsImpl(cacheStore, properties.getNullValueTtl());
+    }
+
+    /**
+     * ZerxCacheManager — Spring Cache 抽象适配。
+     * <p>
+     * 使 Spring 原生 {@code @Cacheable} 注解也能使用 Zerx 缓存。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(ZerxCacheManager.class)
+    public ZerxCacheManager zerxCacheManager(CacheStore cacheStore,
+                                              ZerxCacheProperties properties) {
+        return new ZerxCacheManager(cacheStore, properties);
+    }
+
+    /**
+     * ZerxCacheAspect — 声明式缓存注解 AOP 切面。
+     */
+    @Bean
+    @ConditionalOnMissingBean(ZerxCacheAspect.class)
+    public ZerxCacheAspect zerxCacheAspect(CacheOps cacheOps, CacheStore cacheStore,
+                                           ZerxCacheProperties properties) {
+        return new ZerxCacheAspect(cacheOps, cacheStore, properties);
+    }
+
+    // ======================== 序列化策略 ========================
+
+    /**
+     * 根据配置选择 Redis 值序列化器。
+     */
+    static RedisSerializer<Object> resolveValueSerializer(ZerxCacheProperties properties) {
+        return switch (properties.getSerializer()) {
+            case JACKSON -> new GenericJackson2JsonRedisSerializer();
+            case JSON -> new GenericJackson2JsonRedisSerializer();
+        };
     }
 }

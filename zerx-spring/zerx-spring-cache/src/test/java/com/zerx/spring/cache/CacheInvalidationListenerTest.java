@@ -1,7 +1,7 @@
-package com.zerx.spring.cache;
+package com.zerx.spring.cache.config;
 
-import com.zerx.spring.cache.config.CacheInvalidationListener;
-import com.zerx.spring.cache.ops.CacheOps;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.CacheConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.DefaultMessage;
@@ -11,33 +11,23 @@ import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
-/**
- * {@link CacheInvalidationListener} 单元测试
- *
- * @author zerx
- */
 class CacheInvalidationListenerTest {
 
-    private static final String CHANNEL_PREFIX = "zerx:cache:invalidate:";
-
-    private CacheOps l1Cache;
+    private CacheStore l1Cache;
     private CacheInvalidationListener listener;
 
     @BeforeEach
     void setUp() {
-        l1Cache = mock(CacheOps.class);
+        l1Cache = mock(CacheStore.class);
         listener = new CacheInvalidationListener(l1Cache);
     }
 
     @Test
     void onMessage_evictsL1CacheWithCorrectKey() {
-        String key = "user:123";
-        String channel = CHANNEL_PREFIX + key;
+        String key = "zerx:user:123";
+        String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + key;
         var message = new DefaultMessage(
                 channel.getBytes(StandardCharsets.UTF_8),
                 "evict".getBytes(StandardCharsets.UTF_8));
@@ -49,28 +39,28 @@ class CacheInvalidationListenerTest {
 
     @Test
     void onMessage_handlesChannelWithFullPrefix() {
-        String channel = "zerx:cache:invalidate:user:123";
+        String key = "zerx:user:123";
+        String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + key;
         var message = new DefaultMessage(
                 channel.getBytes(StandardCharsets.UTF_8),
                 "evict".getBytes(StandardCharsets.UTF_8));
 
         listener.onMessage(message, null);
 
-        verify(l1Cache).evict("user:123");
+        verify(l1Cache).evict(key);
     }
 
     @Test
-    void onMessage_handlesChannelWithPrefixButEmptyKey() {
-        // Channel is exactly the prefix with no key after it
-        String channel = CHANNEL_PREFIX;
+    void onMessage_handlesPrefixButEmptyKey() {
+        String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX;
         var message = new DefaultMessage(
                 channel.getBytes(StandardCharsets.UTF_8),
                 "evict".getBytes(StandardCharsets.UTF_8));
 
         listener.onMessage(message, null);
 
-        // extractKeyFromChannel returns "" which is not null, so evict should be called with ""
-        verify(l1Cache).evict("");
+        // Empty key should not call evict
+        verify(l1Cache, never()).evict(anyString());
     }
 
     @Test
@@ -82,7 +72,7 @@ class CacheInvalidationListenerTest {
 
         listener.onMessage(message, null);
 
-        verify(l1Cache, never()).evict("user:123");
+        verify(l1Cache, never()).evict(anyString());
     }
 
     @Test
@@ -98,21 +88,22 @@ class CacheInvalidationListenerTest {
 
     @Test
     void onMessage_catchesExceptionFromL1CacheEvict() {
-        String channel = CHANNEL_PREFIX + "fail:key";
+        String key = "zerx:fail:key";
+        String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + key;
         var message = new DefaultMessage(
                 channel.getBytes(StandardCharsets.UTF_8),
                 "evict".getBytes(StandardCharsets.UTF_8));
 
-        doThrow(new RuntimeException("cache error")).when(l1Cache).evict("fail:key");
+        doThrow(new RuntimeException("cache error")).when(l1Cache).evict(key);
 
         assertThatCode(() -> listener.onMessage(message, null))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    void onMessage_handlesNullMessageBody() {
-        String channel = CHANNEL_PREFIX + "user:456";
-        // Body is empty byte array (DefaultMessage doesn't accept null)
+    void onMessage_handlesEmptyBody() {
+        String key = "zerx:user:456";
+        String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + key;
         var message = new DefaultMessage(
                 channel.getBytes(StandardCharsets.UTF_8),
                 new byte[0]);
@@ -120,7 +111,7 @@ class CacheInvalidationListenerTest {
         assertThatCode(() -> listener.onMessage(message, null))
                 .doesNotThrowAnyException();
 
-        verify(l1Cache).evict("user:456");
+        verify(l1Cache).evict(key);
     }
 
     @Test
@@ -128,8 +119,8 @@ class CacheInvalidationListenerTest {
         Method extractMethod = CacheInvalidationListener.class.getDeclaredMethod("extractKeyFromChannel", String.class);
         extractMethod.setAccessible(true);
 
-        String result = (String) extractMethod.invoke(listener, "zerx:cache:invalidate:user:123");
+        String result = (String) extractMethod.invoke(listener, "zerx:cache:invalidate:zerx:user:123");
 
-        assertThat(result).isEqualTo("user:123");
+        assertThat(result).isEqualTo("zerx:user:123");
     }
 }

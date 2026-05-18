@@ -14,13 +14,25 @@
     <artifactId>zerx-spring-cache</artifactId>
     <packaging>jar</packaging>
     <name>Zerx Spring Cache</name>
-    <description>缓存抽象 — 多级缓存(Caffeine+Redis)、CacheOps 工具类、防穿透/击穿/雪崩</description>
+    <description>缓存实现 — Caffeine/Redis/Multilevel 存储、CacheOps、声明式注解 AOP、自动配置</description>
 
     <dependencies>
+        <!-- zerx-spring-cache-api：接口与注解 -->
+        <dependency>
+            <groupId>com.zerx</groupId>
+            <artifactId>zerx-spring-cache-api</artifactId>
+        </dependency>
+
         <!-- Spring Cache -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <!-- Spring AOP（注解切面） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
         <!-- Caffeine 本地缓存 -->
@@ -36,7 +48,11 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- zerx-common 已在父 POM 声明 -->
+        <!-- SpEL 表达式解析（注解 key 解析） -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-expression</artifactId>
+        </dependency>
 
         <!-- 测试 -->
         <dependency>

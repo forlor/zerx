@@ -1,15 +1,11 @@
-package com.zerx.spring.cache;
+package com.zerx.spring.cache.properties;
 
-import com.zerx.spring.cache.properties.ZerxCacheProperties;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * ZerxCacheProperties 单元测试
- */
 class ZerxCachePropertiesTest {
 
     @Test
@@ -19,8 +15,10 @@ class ZerxCachePropertiesTest {
         assertEquals(ZerxCacheProperties.CacheType.CAFFEINE, props.getType());
         assertEquals("zerx:", props.getKeyPrefix());
         assertTrue(props.isEnabled());
+        assertEquals(Duration.ofMinutes(30), props.getDefaultTtl());
         assertEquals(Duration.ofMinutes(5), props.getNullValueTtl());
         assertEquals(Duration.ofSeconds(5), props.getLockTimeout());
+        assertEquals(ZerxCacheProperties.SerializerType.JACKSON, props.getSerializer());
     }
 
     @Test
@@ -59,5 +57,19 @@ class ZerxCachePropertiesTest {
         var props = new ZerxCacheProperties();
         props.setEnabled(false);
         assertFalse(props.isEnabled());
+    }
+
+    @Test
+    void serializerType() {
+        var props = new ZerxCacheProperties();
+        props.setSerializer(ZerxCacheProperties.SerializerType.JSON);
+        assertEquals(ZerxCacheProperties.SerializerType.JSON, props.getSerializer());
+    }
+
+    @Test
+    void defaultTtl() {
+        var props = new ZerxCacheProperties();
+        props.setDefaultTtl(Duration.ofHours(1));
+        assertEquals(Duration.ofHours(1), props.getDefaultTtl());
     }
 }

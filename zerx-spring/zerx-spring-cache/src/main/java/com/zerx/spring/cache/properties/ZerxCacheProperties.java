@@ -3,56 +3,67 @@ package com.zerx.spring.cache.properties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
-import java.util.List;
 
 /**
  * Zerx 缓存配置属性。
  * <p>
- * 统一管理缓存类型、键前缀、多级缓存配置等。
  * 通过 {@code zerx.cache.*} 前缀在 application.yml 中配置。
  * </p>
+ *
+ * <h3>配置示例：</h3>
+ * <pre>{@code
+ * zerx:
+ *   cache:
+ *     enabled: true
+ *     type: MULTILEVEL
+ *     key-prefix: "app:"
+ *     default-ttl: 30m
+ *     null-value-ttl: 5m
+ *     serializer: JACKSON
+ *     caffeine:
+ *       max-size: 10000
+ *       expire-after-write: 10m
+ *     multilevel:
+ *       l1:
+ *         max-size: 1000
+ *         expire-after-write: 5m
+ *       l2:
+ *         expire-after-write: 30m
+ * }</pre>
  *
  * @author zerx
  */
 @ConfigurationProperties(prefix = "zerx.cache")
 public class ZerxCacheProperties {
 
-    /**
-     * 缓存类型：caffeine（本地）/ redis（分布式）/ multilevel（多级）
-     */
+    /** 缓存类型：CAFFEINE（本地）/ REDIS（分布式）/ MULTILEVEL（多级） */
     private CacheType type = CacheType.CAFFEINE;
 
-    /**
-     * 缓存键统一前缀
-     */
+    /** 缓存键统一前缀 */
     private String keyPrefix = "zerx:";
 
-    /**
-     * 是否启用缓存
-     */
+    /** 是否启用缓存 */
     private boolean enabled = true;
 
-    /**
-     * 空值缓存时间（防穿透），0 表示不缓存空值
-     */
+    /** 默认 TTL（注解未指定 ttl 时的回退值） */
+    private Duration defaultTtl = Duration.ofMinutes(30);
+
+    /** 空值缓存时间（防穿透），0 或负值表示不缓存空值 */
     private Duration nullValueTtl = Duration.ofMinutes(5);
 
-    /**
-     * 防击穿：互斥锁等待超时时间
-     */
+    /** 防击穿：互斥锁等待超时时间（预留，当前实现使用无超时的 ReentrantLock） */
     private Duration lockTimeout = Duration.ofSeconds(5);
 
-    /**
-     * 多级缓存配置
-     */
+    /** Redis 值序列化策略 */
+    private SerializerType serializer = SerializerType.JACKSON;
+
+    /** 多级缓存配置 */
     private Multilevel multilevel = new Multilevel();
 
-    /**
-     * Caffeine 本地缓存配置
-     */
+    /** Caffeine 本地缓存配置 */
     private CaffeineSpec caffeine = new CaffeineSpec();
 
-    // --- getter/setter ---
+    // ======================== getter/setter ========================
 
     public CacheType getType() { return type; }
     public void setType(CacheType type) { this.type = type; }
@@ -63,11 +74,17 @@ public class ZerxCacheProperties {
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
+    public Duration getDefaultTtl() { return defaultTtl; }
+    public void setDefaultTtl(Duration defaultTtl) { this.defaultTtl = defaultTtl; }
+
     public Duration getNullValueTtl() { return nullValueTtl; }
     public void setNullValueTtl(Duration nullValueTtl) { this.nullValueTtl = nullValueTtl; }
 
     public Duration getLockTimeout() { return lockTimeout; }
     public void setLockTimeout(Duration lockTimeout) { this.lockTimeout = lockTimeout; }
+
+    public SerializerType getSerializer() { return serializer; }
+    public void setSerializer(SerializerType serializer) { this.serializer = serializer; }
 
     public Multilevel getMultilevel() { return multilevel; }
     public void setMultilevel(Multilevel multilevel) { this.multilevel = multilevel; }
@@ -75,8 +92,11 @@ public class ZerxCacheProperties {
     public CaffeineSpec getCaffeine() { return caffeine; }
     public void setCaffeine(CaffeineSpec caffeine) { this.caffeine = caffeine; }
 
-    // ======================== 缓存类型枚举 ========================
+    // ======================== 枚举定义 ========================
 
+    /**
+     * 缓存类型枚举。
+     */
     public enum CacheType {
         /** 仅本地缓存（Caffeine） */
         CAFFEINE,
@@ -84,6 +104,22 @@ public class ZerxCacheProperties {
         REDIS,
         /** 多级缓存（L1 Caffeine + L2 Redis） */
         MULTILEVEL
+    }
+
+    /**
+     * Redis 值序列化策略枚举。
+     * <ul>
+     *     <li>{@code JACKSON}：使用 GenericJackson2JsonRedisSerializer，支持多态，
+     *         值中携带 {@code @class} 类型信息，兼容性最好，但体积较大</li>
+     *     <li>{@code JSON}：使用 Jackson + 不带类型头的序列化，体积更小，
+     *         但要求缓存值类型固定（建议业务层统一使用 DTO）</li>
+     * </ul>
+     */
+    public enum SerializerType {
+        /** Jackson 带类型头（默认，兼容多类型） */
+        JACKSON,
+        /** Jackson 无类型头（体积更小，类型固定场景推荐） */
+        JSON
     }
 
     // ======================== 多级缓存配置 ========================

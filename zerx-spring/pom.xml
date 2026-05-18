@@ -19,6 +19,7 @@
     <modules>
         <module>zerx-spring-web</module>
         <module>zerx-spring-data</module>
+        <module>zerx-spring-cache-api</module>
         <module>zerx-spring-cache</module>
         <module>zerx-spring-security</module>
     </modules>

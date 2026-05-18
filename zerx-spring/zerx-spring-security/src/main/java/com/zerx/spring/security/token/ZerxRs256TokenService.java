@@ -1,6 +1,6 @@
 package com.zerx.spring.security.token;
 
-import com.zerx.spring.cache.ops.CacheOps;
+import com.zerx.spring.cache.CacheOps;
 import com.zerx.spring.security.props.ZerxSecurityProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;

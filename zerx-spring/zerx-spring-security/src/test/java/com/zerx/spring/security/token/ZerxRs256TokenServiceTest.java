@@ -1,6 +1,7 @@
 package com.zerx.spring.security.token;
 
-import com.zerx.spring.cache.ops.CacheOps;
+import com.zerx.spring.cache.CacheOps;
+import com.zerx.spring.cache.CacheStore;
 import com.zerx.spring.security.props.ZerxSecurityProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -387,6 +388,11 @@ class ZerxRs256TokenServiceTest {
                 return false;
             }
             return true;
+        }
+
+        @Override
+        public CacheStore getStore() {
+            return null;
         }
 
         private record CacheEntry(Object value, long expiresAt) {
