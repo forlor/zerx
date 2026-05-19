@@ -12,67 +12,12 @@
     </parent>
 
     <artifactId>zerx-spring-cache</artifactId>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
     <name>Zerx Spring Cache</name>
-    <description>缓存实现 — Caffeine/Redis/Multilevel 存储、CacheOps、声明式注解 AOP、自动配置</description>
+    <description>缓存模块 — API 抽象接口 + Caffeine/Redis/Multilevel 实现、声明式注解 AOP、自动配置</description>
 
-    <dependencies>
-        <!-- zerx-spring-cache-api：接口与注解 -->
-        <dependency>
-            <groupId>com.zerx</groupId>
-            <artifactId>zerx-spring-cache-api</artifactId>
-        </dependency>
-
-        <!-- Spring Cache -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-cache</artifactId>
-        </dependency>
-
-        <!-- Spring AOP（注解切面） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-        </dependency>
-
-        <!-- Caffeine 本地缓存 -->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
-
-        <!-- Redis（可选，通过 Spring Boot 自动配置按需引入） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- SpEL 表达式解析（注解 key 解析） -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-expression</artifactId>
-        </dependency>
-
-        <!-- Micrometer 指标（可选，不引入时不记录指标） -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Jackson（序列化策略需要，即使 Redis 为 optional） -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- 测试 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>zerx-spring-cache-api</module>
+        <module>zerx-spring-cache-impl</module>
+    </modules>
 </project>

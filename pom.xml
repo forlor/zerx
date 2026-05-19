@@ -83,7 +83,7 @@
             </dependency>
             <dependency>
                 <groupId>com.zerx</groupId>
-                <artifactId>zerx-spring-cache</artifactId>
+                <artifactId>zerx-spring-cache-impl</artifactId>
                 <version>${zerx.version}</version>
             </dependency>
             <dependency>
@@ -93,7 +93,7 @@
             </dependency>
             <dependency>
                 <groupId>com.zerx</groupId>
-                <artifactId>zerx-spring-security</artifactId>
+                <artifactId>zerx-spring-security-impl</artifactId>
                 <version>${zerx.version}</version>
             </dependency>
             <dependency>

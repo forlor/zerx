@@ -12,64 +12,12 @@
     </parent>
 
     <artifactId>zerx-spring-security</artifactId>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
     <name>Zerx Spring Security</name>
-    <description>认证授权 — SecurityFilterChain Lambda DSL、JWT (HS256/RS256)、RBAC、Refresh Token、密码加密</description>
+    <description>安全模块 — API 抽象接口 + SecurityFilterChain Lambda DSL、JWT (HS256/RS256)、RBAC、Refresh Token、密码加密</description>
 
-    <dependencies>
-        <!-- zerx-spring-security-api: 接口、记录类、配置属性 -->
-        <dependency>
-            <groupId>com.zerx</groupId>
-            <artifactId>zerx-spring-security-api</artifactId>
-        </dependency>
-
-        <!-- zerx-spring-web: 统一响应体、请求上下文 -->
-        <dependency>
-            <groupId>com.zerx</groupId>
-            <artifactId>zerx-spring-web</artifactId>
-        </dependency>
-
-        <!-- zerx-spring-cache: Token 黑名单、权限缓存 -->
-        <dependency>
-            <groupId>com.zerx</groupId>
-            <artifactId>zerx-spring-cache</artifactId>
-        </dependency>
-
-        <!-- Spring Security -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-
-        <!-- jjwt (JWT) -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- 测试 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>zerx-spring-security-api</module>
+        <module>zerx-spring-security-impl</module>
+    </modules>
 </project>
