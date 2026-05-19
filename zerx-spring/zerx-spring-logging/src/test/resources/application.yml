@@ -1,0 +1,12 @@
+zerx:
+  logging:
+    enabled: true
+    op-log:
+      enabled: true
+      log-to-logger: true
+    sensitive-log:
+      enabled: false
+    rate-limit:
+      enabled: false
+    json-format:
+      enabled: false

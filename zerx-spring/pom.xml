@@ -23,6 +23,7 @@
         <module>zerx-spring-cache</module>
         <module>zerx-spring-security-api</module>
         <module>zerx-spring-security</module>
+        <module>zerx-spring-logging</module>
     </modules>
 
     <dependencies>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zerx</groupId>
+        <artifactId>zerx-spring</artifactId>
+        <version>${zerx.version}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zerx-spring-logging</artifactId>
+    <packaging>jar</packaging>
+    <name>Zerx Spring Logging</name>
+    <description>日志增强 — 操作日志注解、日志脱敏 Appender、日志限流、JSON 格式输出</description>
+
+    <dependencies>
+        <!-- zerx-spring-web: RequestContext, 统一响应体 -->
+        <dependency>
+            <groupId>com.zerx</groupId>
+            <artifactId>zerx-spring-web</artifactId>
+        </dependency>
+
+        <!-- Spring AOP（操作日志切面） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- SpEL 表达式解析（操作描述动态求值） -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-expression</artifactId>
+        </dependency>
+
+        <!-- Logback（可选，仅用于脱敏 Appender 和 JSON Encoder） -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Jackson for JSON log format -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

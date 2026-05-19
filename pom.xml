@@ -96,6 +96,11 @@
                 <artifactId>zerx-spring-security</artifactId>
                 <version>${zerx.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-spring-logging</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
 
             <!-- 单元测试 -->
             <dependency>
