@@ -24,14 +24,9 @@ public class ZerxAccessDeniedHandler implements AccessDeniedHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ZerxAccessDeniedHandler.class);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    /** 共享 ObjectMapper 实例（线程安全） */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * 返回 JSON 响应：{@code Result.fail("403", "没有访问权限")}
-     * </p>
-     */
     @Override
     public void handle(@SuppressWarnings("NullableProblems") HttpServletRequest request,
                        @SuppressWarnings("NullableProblems") HttpServletResponse response,
@@ -41,7 +36,7 @@ public class ZerxAccessDeniedHandler implements AccessDeniedHandler {
 
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(
+        response.getWriter().write(OBJECT_MAPPER.writeValueAsString(
                 Result.fail("403", "没有访问权限")));
     }
 }

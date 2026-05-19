@@ -99,6 +99,7 @@ public class ZerxSecurityConfiguration {
                 // URL 访问权限
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(permitUrls.toArray(String[]::new)).permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 // 自定义异常处理
                 .exceptionHandling(ex -> ex

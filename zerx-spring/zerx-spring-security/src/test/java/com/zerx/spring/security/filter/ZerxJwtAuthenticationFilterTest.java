@@ -4,6 +4,7 @@ import com.zerx.spring.security.props.ZerxSecurityProperties;
 import com.zerx.spring.security.token.ZerxTokenClaims;
 import com.zerx.spring.security.token.ZerxTokenService;
 import com.zerx.spring.web.context.RequestContext;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +32,6 @@ class ZerxJwtAuthenticationFilterTest {
     private static final Long TEST_USER_ID = 1001L;
     private static final String TEST_JTI = "test-jti-001";
     private static final String VALID_TOKEN = "valid.jwt.token";
-    private static final String EXPIRED_TOKEN = "expired.jwt.token";
     private static final String INVALID_TOKEN = "invalid.jwt.token";
 
     private ZerxTokenService tokenService;
@@ -65,8 +65,8 @@ class ZerxJwtAuthenticationFilterTest {
 
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -84,7 +84,7 @@ class ZerxJwtAuthenticationFilterTest {
             filter.doFilterInternal(request, response, (req, res) -> {});
 
             assertNull(SecurityContextHolder.getContext().getAuthentication());
-            verify(tokenService, never()).validateToken(anyString());
+            verify(tokenService, never()).parseToken(anyString());
         }
 
         @Test
@@ -97,7 +97,7 @@ class ZerxJwtAuthenticationFilterTest {
             filter.doFilterInternal(request, response, (req, res) -> {});
 
             assertNull(SecurityContextHolder.getContext().getAuthentication());
-            verify(tokenService, never()).validateToken(anyString());
+            verify(tokenService, never()).parseToken(anyString());
         }
 
         @Test
@@ -126,8 +126,8 @@ class ZerxJwtAuthenticationFilterTest {
 
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -138,13 +138,13 @@ class ZerxJwtAuthenticationFilterTest {
         }
 
         @Test
-        @DisplayName("无效令牌清除 SecurityContext")
+        @DisplayName("无效令牌清除 SecurityContext 并设置错误属性")
         void invalidToken_clearContext() throws Exception {
             var request = new MockHttpServletRequest();
             request.addHeader("Authorization", "Bearer " + INVALID_TOKEN);
             var response = new MockHttpServletResponse();
 
-            when(tokenService.validateToken(INVALID_TOKEN)).thenReturn(false);
+            when(tokenService.parseToken(INVALID_TOKEN)).thenThrow(new RuntimeException("bad token"));
 
             // 先设置一个认证信息
             SecurityContextHolder.getContext().setAuthentication(
@@ -155,21 +155,44 @@ class ZerxJwtAuthenticationFilterTest {
 
             var auth = SecurityContextHolder.getContext().getAuthentication();
             assertNull(auth);
+            assertEquals(ZerxJwtAuthenticationFilter.AUTH_ERROR_TOKEN_INVALID,
+                    request.getAttribute(ZerxJwtAuthenticationFilter.ATTR_AUTH_ERROR));
         }
 
         @Test
-        @DisplayName("令牌校验失败后 SecurityContext 被清除")
-        void validationFailure_clearsContext() throws Exception {
+        @DisplayName("过期令牌设置 TOKEN_EXPIRED 错误属性")
+        void expiredToken_setsExpiredError() throws Exception {
             var request = new MockHttpServletRequest();
-            request.addHeader("Authorization", "Bearer " + EXPIRED_TOKEN);
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
             var response = new MockHttpServletResponse();
 
-            when(tokenService.validateToken(EXPIRED_TOKEN)).thenReturn(false);
+            when(tokenService.parseToken(VALID_TOKEN))
+                    .thenThrow(new ExpiredJwtException(null, null, "JWT expired"));
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
             assertNull(SecurityContextHolder.getContext().getAuthentication());
-            verify(tokenService, never()).parseToken(anyString());
+            assertEquals(ZerxJwtAuthenticationFilter.AUTH_ERROR_TOKEN_EXPIRED,
+                    request.getAttribute(ZerxJwtAuthenticationFilter.ATTR_AUTH_ERROR));
+        }
+
+        @Test
+        @DisplayName("黑名单令牌清除 SecurityContext 并设置错误属性")
+        void blacklistedToken_clearContextAndSetError() throws Exception {
+            var request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            var response = new MockHttpServletResponse();
+
+            var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
+                    Instant.now(), Instant.now().plusSeconds(3600), "access", List.of());
+            when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(true);
+
+            filter.doFilterInternal(request, response, (req, res) -> {});
+
+            assertNull(SecurityContextHolder.getContext().getAuthentication());
+            assertEquals(ZerxJwtAuthenticationFilter.AUTH_ERROR_TOKEN_BLACKLISTED,
+                    request.getAttribute(ZerxJwtAuthenticationFilter.ATTR_AUTH_ERROR));
         }
     }
 
@@ -187,8 +210,8 @@ class ZerxJwtAuthenticationFilterTest {
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access",
                     List.of("ADMIN", "USER"));
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -212,8 +235,8 @@ class ZerxJwtAuthenticationFilterTest {
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access",
                     List.of("ROLE_ADMIN", "SUPER_USER"));
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -237,8 +260,8 @@ class ZerxJwtAuthenticationFilterTest {
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access",
                     List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -261,8 +284,8 @@ class ZerxJwtAuthenticationFilterTest {
 
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -276,7 +299,7 @@ class ZerxJwtAuthenticationFilterTest {
             request.addHeader("Authorization", "Bearer " + INVALID_TOKEN);
             var response = new MockHttpServletResponse();
 
-            when(tokenService.validateToken(INVALID_TOKEN)).thenReturn(false);
+            when(tokenService.parseToken(INVALID_TOKEN)).thenThrow(new RuntimeException("bad token"));
 
             var originalUserId = 9999L;
             RequestContext.setUserId(originalUserId);
@@ -297,8 +320,8 @@ class ZerxJwtAuthenticationFilterTest {
 
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             assertDoesNotThrow(() ->
                     filter.doFilterInternal(request, response, (req, res) -> {}));
@@ -319,12 +342,14 @@ class ZerxJwtAuthenticationFilterTest {
             // tokenType 为 refresh，应被拒绝
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "refresh", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
             assertNull(SecurityContextHolder.getContext().getAuthentication());
+            assertEquals(ZerxJwtAuthenticationFilter.AUTH_ERROR_TOKEN_TYPE_REJECTED,
+                    request.getAttribute(ZerxJwtAuthenticationFilter.ATTR_AUTH_ERROR));
         }
 
         @Test
@@ -336,8 +361,8 @@ class ZerxJwtAuthenticationFilterTest {
 
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "refresh", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             Long originalUserId = 9999L;
             RequestContext.setUserId(originalUserId);
@@ -357,8 +382,8 @@ class ZerxJwtAuthenticationFilterTest {
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access",
                     List.of("ADMIN"));
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
@@ -386,14 +411,46 @@ class ZerxJwtAuthenticationFilterTest {
 
             var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
                     Instant.now(), Instant.now().plusSeconds(3600), "access", List.of());
-            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
             when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+            when(tokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
 
             filter.doFilterInternal(request, response, (req, res) -> {});
 
             var auth = SecurityContextHolder.getContext().getAuthentication();
             assertNotNull(auth);
             assertEquals(TEST_USER_ID, auth.getPrincipal());
+        }
+    }
+
+    @Nested
+    @DisplayName("错误属性传递测试")
+    class ErrorAttributeTest {
+
+        @Test
+        @DisplayName("无令牌时不设置错误属性（由 EntryPoint 返回默认 401）")
+        void noToken_noErrorAttribute() throws Exception {
+            var request = new MockHttpServletRequest();
+            var response = new MockHttpServletResponse();
+
+            filter.doFilterInternal(request, response, (req, res) -> {});
+
+            assertNull(request.getAttribute(ZerxJwtAuthenticationFilter.ATTR_AUTH_ERROR));
+        }
+
+        @Test
+        @DisplayName("签名无效令牌设置 TOKEN_INVALID 属性")
+        void invalidSignature_setsInvalidError() throws Exception {
+            var request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Bearer " + INVALID_TOKEN);
+            var response = new MockHttpServletResponse();
+
+            when(tokenService.parseToken(INVALID_TOKEN))
+                    .thenThrow(new io.jsonwebtoken.SignatureException("invalid signature"));
+
+            filter.doFilterInternal(request, response, (req, res) -> {});
+
+            assertEquals(ZerxJwtAuthenticationFilter.AUTH_ERROR_TOKEN_INVALID,
+                    request.getAttribute(ZerxJwtAuthenticationFilter.ATTR_AUTH_ERROR));
         }
     }
 }

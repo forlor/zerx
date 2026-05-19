@@ -5,6 +5,7 @@ import com.zerx.spring.security.token.ZerxRoleService;
 import com.zerx.spring.security.token.ZerxTokenClaims;
 import com.zerx.spring.security.token.ZerxTokenService;
 import com.zerx.spring.web.context.RequestContext;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.annotation.Nullable;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -37,12 +38,13 @@ import java.util.List;
  * <h3>处理流程：</h3>
  * <ol>
  *   <li>从请求头提取 Bearer Token</li>
- *   <li>使用 {@link ZerxTokenService} 解析并验证令牌</li>
+ *   <li>解析并验证令牌（仅解析一次，同时完成签名+过期+黑名单校验）</li>
+ *   <li>校验令牌类型（仅 access token 可用于 API 认证）</li>
  *   <li>加载角色：优先 SPI，回退到 JWT claims</li>
  *   <li>将角色转换为 Spring Security {@link GrantedAuthority}</li>
  *   <li>创建 {@link UsernamePasswordAuthenticationToken} 并设置到 {@link SecurityContextHolder}</li>
  *   <li>将 userId 设置到 {@link RequestContext}</li>
- *   <li>验证失败时清除 SecurityContext，继续过滤器链（由 Spring Security 处理 401）</li>
+ *   <li>验证失败时清除 SecurityContext，通过请求属性传递失败原因给 EntryPoint</li>
  * </ol>
  *
  * @author zerx
@@ -53,6 +55,21 @@ public class ZerxJwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** 仅允许用于 API 认证的令牌类型 */
     private static final String ALLOWED_TOKEN_TYPE = "access";
+
+    /** 请求属性：认证失败原因，供 {@link com.zerx.spring.security.handler.ZerxAuthenticationEntryPoint} 读取 */
+    public static final String ATTR_AUTH_ERROR = "zerx.auth.error";
+
+    /** 认证失败原因：令牌已过期 */
+    public static final String AUTH_ERROR_TOKEN_EXPIRED = "token_expired";
+
+    /** 认证失败原因：令牌无效（签名错误、格式错误等） */
+    public static final String AUTH_ERROR_TOKEN_INVALID = "token_invalid";
+
+    /** 认证失败原因：令牌已被加入黑名单 */
+    public static final String AUTH_ERROR_TOKEN_BLACKLISTED = "token_blacklisted";
+
+    /** 认证失败原因：令牌类型不匹配（如 refresh token 用于 API 认证） */
+    public static final String AUTH_ERROR_TOKEN_TYPE_REJECTED = "token_type_rejected";
 
     private final ZerxTokenService tokenService;
     private final ZerxSecurityProperties properties;
@@ -93,8 +110,10 @@ public class ZerxJwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * {@inheritDoc}
      * <p>
-     * 从请求头提取 JWT 令牌，验证后将用户身份和角色注入安全上下文。
-     * 任何验证失败都不阻塞请求，仅清除安全上下文，交由后续过滤器处理。
+     * 从请求头提取 JWT 令牌，仅解析一次完成签名+过期+黑名单校验，
+     * 验证后将用户身份和角色注入安全上下文。
+     * 任何验证失败都不阻塞请求，仅清除安全上下文并设置请求属性传递失败原因，
+     * 交由后续 EntryPoint 处理 401 响应。
      * </p>
      */
     @Override
@@ -105,15 +124,25 @@ public class ZerxJwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractToken(request);
             if (token != null) {
-                if (tokenService.validateToken(token)) {
+                try {
+                    // 仅解析一次：验证签名 + 过期时间，同时提取 claims
                     ZerxTokenClaims claims = tokenService.parseToken(token);
 
+                    // 检查黑名单
+                    if (tokenService.isBlacklisted(claims.jti())) {
+                        log.debug("Token is blacklisted: jti={}", claims.jti());
+                        request.setAttribute(ATTR_AUTH_ERROR, AUTH_ERROR_TOKEN_BLACKLISTED);
+                        SecurityContextHolder.clearContext();
+                    }
                     // 校验令牌类型：仅 access token 可用于 API 认证
-                    if (!ALLOWED_TOKEN_TYPE.equals(claims.tokenType())) {
+                    else if (!ALLOWED_TOKEN_TYPE.equals(claims.tokenType())) {
                         log.debug("Rejected non-access token: tokenType={}, jti={}",
                                 claims.tokenType(), claims.jti());
+                        request.setAttribute(ATTR_AUTH_ERROR, AUTH_ERROR_TOKEN_TYPE_REJECTED);
                         SecurityContextHolder.clearContext();
-                    } else {
+                    }
+                    // 认证通过：加载角色并设置安全上下文
+                    else {
                         // 加载角色：优先 SPI 按需加载，回退到 JWT claims
                         List<String> roles = loadRoles(claims);
 
@@ -131,14 +160,18 @@ public class ZerxJwtAuthenticationFilter extends OncePerRequestFilter {
                             RequestContext.setUserId(claims.userId());
                         }
                     }
-
-                } else {
-                    // 令牌无效，清除安全上下文
+                } catch (ExpiredJwtException ex) {
+                    log.debug("Token expired: {}", ex.getMessage());
+                    request.setAttribute(ATTR_AUTH_ERROR, AUTH_ERROR_TOKEN_EXPIRED);
+                    SecurityContextHolder.clearContext();
+                } catch (Exception ex) {
+                    log.debug("JWT authentication failed: {}", ex.getMessage());
+                    request.setAttribute(ATTR_AUTH_ERROR, AUTH_ERROR_TOKEN_INVALID);
                     SecurityContextHolder.clearContext();
                 }
             }
         } catch (Exception ex) {
-            log.debug("JWT authentication failed: {}", ex.getMessage());
+            log.debug("JWT authentication unexpected error: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
         }
 
@@ -150,22 +183,25 @@ public class ZerxJwtAuthenticationFilter extends OncePerRequestFilter {
      * <p>
      * 如果 {@link ZerxRoleService} 可用，从 SPI 按需加载角色；
      * 否则从 JWT claims 中的 roles 字段获取（向后兼容）。
+     * 对 SPI 返回值做 null 防护，避免空指针异常。
      * </p>
      *
      * @param claims 令牌声明
-     * @return 角色列表
+     * @return 角色列表，不会为 null
      */
     private List<String> loadRoles(ZerxTokenClaims claims) {
         if (roleService != null) {
             try {
-                return roleService.getRoles(claims.userId());
+                List<String> roles = roleService.getRoles(claims.userId());
+                if (roles != null) {
+                    return roles;
+                }
             } catch (Exception ex) {
                 log.warn("ZerxRoleService failed to load roles for userId={}, falling back to JWT claims: {}",
                         claims.userId(), ex.getMessage());
-                return claims.roles();
             }
         }
-        return claims.roles();
+        return claims.roles() != null ? claims.roles() : List.of();
     }
 
     /**
