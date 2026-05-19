@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.logging.LogRateLimiter;
 import com.zerx.spring.logging.annotation.ZerxOpLog;
 import com.zerx.spring.logging.event.ZerxOpLogEvent;
-import com.zerx.spring.logging.props.ZerxLoggingProperties;
+import com.zerx.spring.logging.properties.ZerxLoggingProperties;
 import com.zerx.spring.logging.service.ZerxOpLogService;
 import com.zerx.spring.web.context.RequestContext;
 import org.aspectj.lang.ProceedingJoinPoint;

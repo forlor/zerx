@@ -681,7 +681,7 @@ package com.zerx.spring.security.config;
 import com.zerx.spring.security.filter.ZerxJwtAuthenticationFilter;
 import com.zerx.spring.security.handler.ZerxAuthenticationEntryPoint;
 import com.zerx.spring.security.handler.ZerxAccessDeniedHandler;
-import com.zerx.spring.security.props.ZerxSecurityProperties;
+import com.zerx.spring.security.properties.ZerxSecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

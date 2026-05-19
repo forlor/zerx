@@ -2,7 +2,7 @@ package com.zerx.spring.security.config;
 
 import com.zerx.spring.cache.CacheOps;
 import com.zerx.spring.cache.CacheStore;
-import com.zerx.spring.security.props.ZerxSecurityProperties;
+import com.zerx.spring.security.properties.ZerxSecurityProperties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

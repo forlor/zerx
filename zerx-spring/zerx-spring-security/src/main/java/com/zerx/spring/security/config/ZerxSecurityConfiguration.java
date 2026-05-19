@@ -3,7 +3,7 @@ package com.zerx.spring.security.config;
 import com.zerx.spring.security.filter.ZerxJwtAuthenticationFilter;
 import com.zerx.spring.security.handler.ZerxAccessDeniedHandler;
 import com.zerx.spring.security.handler.ZerxAuthenticationEntryPoint;
-import com.zerx.spring.security.props.ZerxSecurityProperties;
+import com.zerx.spring.security.properties.ZerxSecurityProperties;
 import com.zerx.spring.security.service.ZerxPasswordService;
 import com.zerx.spring.security.token.ZerxRoleService;
 import com.zerx.spring.security.token.ZerxTokenService;

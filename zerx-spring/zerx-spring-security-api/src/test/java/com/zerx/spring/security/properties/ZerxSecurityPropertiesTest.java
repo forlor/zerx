@@ -1,4 +1,4 @@
-package com.zerx.spring.security.props;
+package com.zerx.spring.security.properties;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

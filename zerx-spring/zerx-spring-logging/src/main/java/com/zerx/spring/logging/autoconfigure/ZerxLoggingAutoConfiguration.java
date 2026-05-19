@@ -3,7 +3,7 @@ package com.zerx.spring.logging.autoconfigure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.logging.LogRateLimiter;
 import com.zerx.spring.logging.aspect.ZerxOpLogAspect;
-import com.zerx.spring.logging.props.ZerxLoggingProperties;
+import com.zerx.spring.logging.properties.ZerxLoggingProperties;
 import com.zerx.spring.logging.service.ZerxOpLogService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

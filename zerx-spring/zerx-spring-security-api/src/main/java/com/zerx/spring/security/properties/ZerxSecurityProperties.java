@@ -1,4 +1,4 @@
-package com.zerx.spring.security.props;
+package com.zerx.spring.security.properties;
 
 import java.time.Duration;
 import java.util.ArrayList;

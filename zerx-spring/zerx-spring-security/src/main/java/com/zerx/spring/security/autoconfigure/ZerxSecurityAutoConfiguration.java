@@ -2,7 +2,7 @@ package com.zerx.spring.security.autoconfigure;
 
 import com.zerx.spring.cache.CacheOps;
 import com.zerx.spring.security.config.ZerxSecurityConfiguration;
-import com.zerx.spring.security.props.ZerxSecurityProperties;
+import com.zerx.spring.security.properties.ZerxSecurityProperties;
 import com.zerx.spring.security.token.ZerxHs256TokenService;
 import com.zerx.spring.security.token.ZerxRs256TokenService;
 import com.zerx.spring.security.token.ZerxTokenService;

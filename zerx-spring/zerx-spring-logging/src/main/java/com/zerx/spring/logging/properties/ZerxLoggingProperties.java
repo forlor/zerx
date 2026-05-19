@@ -1,4 +1,4 @@
-package com.zerx.spring.logging.props;
+package com.zerx.spring.logging.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

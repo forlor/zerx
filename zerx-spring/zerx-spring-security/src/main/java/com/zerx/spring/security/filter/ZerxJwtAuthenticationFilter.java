@@ -1,6 +1,6 @@
 package com.zerx.spring.security.filter;
 
-import com.zerx.spring.security.props.ZerxSecurityProperties;
+import com.zerx.spring.security.properties.ZerxSecurityProperties;
 import com.zerx.spring.security.token.ZerxRoleService;
 import com.zerx.spring.security.token.ZerxTokenClaims;
 import com.zerx.spring.security.token.ZerxTokenService;
