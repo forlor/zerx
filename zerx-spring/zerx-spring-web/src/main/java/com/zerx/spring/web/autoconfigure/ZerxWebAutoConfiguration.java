@@ -1,5 +1,6 @@
 package com.zerx.spring.web.autoconfigure;
 
+import com.zerx.common.logging.OpLogContextExtractor;
 import com.zerx.spring.web.advise.GlobalExceptionHandler;
 import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
 import com.zerx.spring.web.config.JacksonAutoConfiguration;
@@ -9,6 +10,7 @@ import com.zerx.spring.web.filter.TraceFilter;
 import com.zerx.spring.web.interceptor.RequestContextInterceptor;
 import com.zerx.spring.web.properties.ZerxWebProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,6 +30,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *   <li>{@link TraceFilter} — 链路追踪过滤器</li>
  *   <li>{@link RequestContextInterceptor} — 请求上下文拦截器</li>
  *   <li>{@link ZerxCorsAutoConfiguration} — CORS 跨域配置</li>
+ *   <li>{@link OpLogContextExtractor} — 操作日志上下文提取器</li>
  * </ul>
  * </p>
  *
@@ -101,5 +104,21 @@ public class ZerxWebAutoConfiguration {
                         .order(Integer.MIN_VALUE);
             }
         };
+    }
+
+    /**
+     * 注册操作日志上下文提取器
+     * <p>
+     * 将 {@link RequestContext} 桥接为 {@link OpLogContextExtractor}，
+     * 使得 {@code zerx-spring-logging} 模块在 Web 环境下能自动获取
+     * 当前请求的用户身份信息（userId、username、clientIp）。
+     * </p>
+     *
+     * @return 操作日志上下文提取器
+     */
+    @Bean
+    @ConditionalOnMissingBean(OpLogContextExtractor.class)
+    public OpLogContextExtractor opLogContextExtractor() {
+        return new RequestContextOpLogContextExtractor();
     }
 }

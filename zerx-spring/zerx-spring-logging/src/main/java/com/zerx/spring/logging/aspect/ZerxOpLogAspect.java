@@ -2,11 +2,11 @@ package com.zerx.spring.logging.aspect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.logging.LogRateLimiter;
+import com.zerx.common.logging.OpLogContextExtractor;
 import com.zerx.spring.logging.annotation.ZerxOpLog;
 import com.zerx.spring.logging.event.ZerxOpLogEvent;
 import com.zerx.spring.logging.properties.ZerxLoggingProperties;
 import com.zerx.spring.logging.service.ZerxOpLogService;
-import com.zerx.spring.web.context.RequestContext;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -29,13 +29,13 @@ import java.util.Set;
  * 操作日志 AOP 切面
  * <p>
  * 拦截标注了 {@link ZerxOpLog} 的方法，记录操作信息并发布 {@link ZerxOpLogEvent}。
- * 操作上下文信息从 {@link RequestContext} 和 {@link MDC} 中获取。
+ * 操作上下文信息从 {@link OpLogContextExtractor} 和 {@link MDC} 中获取。
  * </p>
  *
  * <h3>执行流程：</h3>
  * <ol>
  *   <li>提取方法签名、参数名、参数值</li>
- *   <li>从 RequestContext 获取 userId、username、clientIp</li>
+ *   <li>从 OpLogContextExtractor 获取 userId、username、clientIp</li>
  *   <li>执行目标方法</li>
  *   <li>构建 {@link ZerxOpLogEvent}（成功/失败）</li>
  *   <li>通过 {@link ZerxOpLogService#save} 持久化（可选）</li>
@@ -53,25 +53,29 @@ public class ZerxOpLogAspect {
     private final ZerxOpLogService opLogService;
     private final ObjectMapper objectMapper;
     private final LogRateLimiter rateLimiter;
+    private final OpLogContextExtractor contextExtractor;
     private final SpelExpressionParser spelParser = new SpelExpressionParser();
     private final DefaultParameterNameDiscoverer nameDiscoverer = new DefaultParameterNameDiscoverer();
 
     /**
      * 创建操作日志切面
      *
-     * @param properties   日志增强配置
-     * @param opLogService 操作日志持久化服务（可为 null）
-     * @param objectMapper Jackson ObjectMapper
-     * @param rateLimiter  日志限流器（可为 null）
+     * @param properties       日志增强配置
+     * @param opLogService     操作日志持久化服务（可为 null）
+     * @param objectMapper     Jackson ObjectMapper
+     * @param rateLimiter      日志限流器（可为 null）
+     * @param contextExtractor 操作日志上下文提取器（可为 null）
      */
     public ZerxOpLogAspect(ZerxLoggingProperties properties,
                            ZerxOpLogService opLogService,
                            ObjectMapper objectMapper,
-                           LogRateLimiter rateLimiter) {
+                           LogRateLimiter rateLimiter,
+                           OpLogContextExtractor contextExtractor) {
         this.properties = properties;
         this.opLogService = opLogService;
         this.objectMapper = objectMapper;
         this.rateLimiter = rateLimiter;
+        this.contextExtractor = contextExtractor;
     }
 
     /**
@@ -103,11 +107,13 @@ public class ZerxOpLogAspect {
         Long userId = null;
         String username = null;
         String clientIp = null;
-        RequestContext ctx = RequestContext.get();
-        if (ctx != null) {
-            userId = ctx.getUserId();
-            username = ctx.getUsername();
-            clientIp = ctx.getRequestIp();
+        if (contextExtractor != null) {
+            OpLogContextExtractor.OpLogContext ctx = contextExtractor.extract();
+            if (ctx != null) {
+                userId = ctx.userId();
+                username = ctx.username();
+                clientIp = ctx.clientIp();
+            }
         }
 
         // 解析 SpEL 操作描述

@@ -2,6 +2,7 @@ package com.zerx.spring.logging.autoconfigure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.logging.LogRateLimiter;
+import com.zerx.common.logging.OpLogContextExtractor;
 import com.zerx.spring.logging.aspect.ZerxOpLogAspect;
 import com.zerx.spring.logging.properties.ZerxLoggingProperties;
 import com.zerx.spring.logging.service.ZerxOpLogService;
@@ -51,10 +52,11 @@ public class ZerxLoggingAutoConfiguration {
      * 如果未提供实现，操作日志仅输出到日志（不持久化）。
      * </p>
      *
-     * @param properties   日志增强配置
-     * @param opLogService 操作日志持久化服务（可选）
-     * @param objectMapper Jackson ObjectMapper
-     * @param rateLimiter  日志限流器（可选）
+     * @param properties       日志增强配置
+     * @param opLogService     操作日志持久化服务（可选）
+     * @param objectMapper     Jackson ObjectMapper
+     * @param rateLimiter      日志限流器（可选）
+     * @param contextExtractor 操作日志上下文提取器（可选，由 Web 等模块提供）
      * @return 操作日志切面
      */
     @Bean
@@ -62,12 +64,14 @@ public class ZerxLoggingAutoConfiguration {
     public ZerxOpLogAspect zerxOpLogAspect(ZerxLoggingProperties properties,
                                            ObjectProvider<ZerxOpLogService> opLogService,
                                            ObjectMapper objectMapper,
-                                           ObjectProvider<LogRateLimiter> rateLimiter) {
+                                           ObjectProvider<LogRateLimiter> rateLimiter,
+                                           ObjectProvider<OpLogContextExtractor> contextExtractor) {
         return new ZerxOpLogAspect(
                 properties,
                 opLogService.getIfAvailable(),
                 objectMapper,
-                rateLimiter.getIfAvailable());
+                rateLimiter.getIfAvailable(),
+                contextExtractor.getIfAvailable());
     }
 
     /**

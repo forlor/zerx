@@ -38,7 +38,7 @@ class ZerxOpLogAspectTest {
     void setUp() {
         properties = new ZerxLoggingProperties();
         aspect = new ZerxOpLogAspect(properties, opLogService,
-                new ObjectMapper(), null);
+                new ObjectMapper(), null, null);
     }
 
     @Test
@@ -131,7 +131,7 @@ class ZerxOpLogAspectTest {
     void logRateLimiter_blocks_excessive_logs() {
         LogRateLimiter limiter = LogRateLimiter.of(2, java.time.Duration.ofSeconds(1));
         ZerxOpLogAspect rateLimitedAspect = new ZerxOpLogAspect(properties, opLogService,
-                new ObjectMapper(), limiter);
+                new ObjectMapper(), limiter, null);
 
         // First 2 calls should pass
         assertTrue(limiter.tryAcquire("test"));
