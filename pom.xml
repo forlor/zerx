@@ -240,6 +240,14 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>${maven-enforcer-plugin.version}</version>
+                <dependencies>
+                    <!-- BanDuplicateClasses 规则需要 extra-enforcer-rules -->
+                    <dependency>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>extra-enforcer-rules</artifactId>
+                        <version>1.8.0</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <id>enforce-rules</id>
@@ -269,7 +277,7 @@
                                     <onlyWhenRelease>true</onlyWhenRelease>
                                 </requireReleaseDeps>
 
-                                <!-- 禁止使用过时的 API -->
+                                <!-- 禁止重复类（需要 extra-enforcer-rules） -->
                                 <banDuplicateClasses>
                                     <findAllDuplicates>true</findAllDuplicates>
                                 </banDuplicateClasses>

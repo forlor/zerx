@@ -40,7 +40,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(ZerxWebProperties.class)
-@Import({ZerxCorsAutoConfiguration.class, JacksonAutoConfiguration.class})
+@Import(ZerxCorsAutoConfiguration.class)
 public class ZerxWebAutoConfiguration {
 
     /**

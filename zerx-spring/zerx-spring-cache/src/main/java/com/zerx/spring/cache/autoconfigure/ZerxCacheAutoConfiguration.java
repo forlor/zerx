@@ -210,10 +210,11 @@ public class ZerxCacheAutoConfiguration {
     /**
      * 当 Caffeine 开启 recordStats 且 Micrometer MeterRegistry 存在时，
      * 自动将 Caffeine 统计信息绑定到 MeterRegistry。
+     * 仅在 CacheStore 实例为 CaffeineCacheStore 时激活。
      */
     @Configuration
     @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
-    @ConditionalOnBean(io.micrometer.core.instrument.MeterRegistry.class)
+    @ConditionalOnBean({io.micrometer.core.instrument.MeterRegistry.class, CaffeineCacheStore.class})
     @ConditionalOnProperty(prefix = "zerx.cache.caffeine", name = "record-stats", havingValue = "true")
     static class CaffeineMetricsConfiguration {
 
@@ -221,13 +222,9 @@ public class ZerxCacheAutoConfiguration {
         @ConditionalOnMissingBean(name = "zerxCaffeineCacheMetrics")
         @SuppressWarnings({"rawtypes", "unchecked"})
         public io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics zerxCaffeineCacheMetrics(
-                CacheStore cacheStore) {
-            if (cacheStore instanceof CaffeineCacheStore caffeineStore) {
-                return new io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics(
-                        caffeineStore.getNativeCache(), "zerx-caffeine-cache", java.util.Collections.emptyList());
-            }
-            // 非纯 Caffeine 模式（如 Multilevel），跳过
-            return null;
+                CaffeineCacheStore caffeineStore) {
+            return new io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics(
+                    caffeineStore.getNativeCache(), "zerx-caffeine-cache", java.util.Collections.emptyList());
         }
     }
 
