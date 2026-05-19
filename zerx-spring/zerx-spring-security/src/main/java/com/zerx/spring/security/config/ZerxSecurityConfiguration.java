@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -46,6 +47,7 @@ import java.util.List;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @ConditionalOnProperty(prefix = "zerx.security", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(ZerxSecurityProperties.class)
 public class ZerxSecurityConfiguration {
@@ -70,13 +72,27 @@ public class ZerxSecurityConfiguration {
                                                    ZerxAuthenticationEntryPoint authEntryPoint,
                                                    ZerxAccessDeniedHandler accessDeniedHandler,
                                                    ZerxSecurityProperties properties) throws Exception {
+        // 合并 permitUrls：配置值 + 默认的 actuator health/info
         List<String> permitUrls = new java.util.ArrayList<>(properties.getPermitUrls());
         permitUrls.addAll(List.of(
                 "/actuator/health",
                 "/actuator/info"
         ));
 
-        http
+        // 合并角色规则：配置值 + 默认的 actuator ADMIN 规则
+        List<ZerxSecurityProperties.RoleRule> roleRules = new java.util.ArrayList<>(properties.getRoleRules());
+        // 如果用户未配置 /actuator/** 规则，添加默认的 ADMIN 规则
+        boolean hasActuatorRule = roleRules.stream()
+                .anyMatch(r -> "/actuator/**".equals(r.getPath()));
+        if (!hasActuatorRule) {
+            ZerxSecurityProperties.RoleRule actuatorRule = new ZerxSecurityProperties.RoleRule();
+            actuatorRule.setPath("/actuator/**");
+            actuatorRule.setRole("ADMIN");
+            roleRules.add(actuatorRule);
+        }
+
+        // 构建授权规则
+        var authConfig = http
                 // 禁用 CSRF（前后端分离，使用 JWT 无状态认证）
                 .csrf(AbstractHttpConfigurer::disable)
                 // CORS 委托给 Web 模块的 CorsFilter（zerx.web.cors.* 配置）
@@ -95,18 +111,27 @@ public class ZerxSecurityConfiguration {
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"))
                         .referrerPolicy(referrer -> referrer
-                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
-                // URL 访问权限
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(permitUrls.toArray(String[]::new)).permitAll()
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
-                // 自定义异常处理
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(authEntryPoint)
-                        .accessDeniedHandler(accessDeniedHandler))
-                // JWT 认证过滤器（在 UsernamePasswordAuthenticationFilter 之前）
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)));
+
+        // URL 访问权限
+        authConfig.authorizeHttpRequests(auth -> {
+            // 免认证 URL
+            auth.requestMatchers(permitUrls.toArray(String[]::new)).permitAll();
+            // 角色约束规则
+            for (var rule : roleRules) {
+                auth.requestMatchers(rule.getPath()).hasRole(rule.getRole());
+            }
+            // 其他所有请求需要认证
+            auth.anyRequest().authenticated();
+        });
+
+        // 自定义异常处理
+        authConfig.exceptionHandling(ex -> ex
+                .authenticationEntryPoint(authEntryPoint)
+                .accessDeniedHandler(accessDeniedHandler));
+
+        // JWT 认证过滤器（在 UsernamePasswordAuthenticationFilter 之前）
+        authConfig.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

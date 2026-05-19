@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -31,6 +32,11 @@ import org.springframework.security.web.SecurityFilterChain;
  * <h3>自动注册的 Bean：</h3>
  * <ul>
  *   <li>{@link ZerxTokenService} — 根据 {@code zerx.security.jwt.algorithm} 选择 HS256 或 RS256 实现</li>
+ * </ul>
+ *
+ * <h3>自动配置行为：</h3>
+ * <ul>
+ *   <li>将 SecurityContext 策略设置为 {@code INHERITABLE_THREAD_LOCAL}，确保 {@code @Async} 方法中不丢失认证信息</li>
  * </ul>
  *
  * @author zerx
@@ -64,5 +70,12 @@ public class ZerxSecurityAutoConfiguration {
             case "RS256" -> new ZerxRs256TokenService(props, cacheOps);
             default -> new ZerxHs256TokenService(props, cacheOps);
         };
+    }
+
+    static {
+        // 将 SecurityContext 策略设置为 INHERITABLE_THREAD_LOCAL
+        // 确保 @Async 异步方法和子线程能够访问主线程的 SecurityContext
+        // Spring Security 默认使用 ThreadLocal，在异步场景下会丢失认证信息
+        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
     }
 }

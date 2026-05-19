@@ -1,6 +1,7 @@
 package com.zerx.spring.security.props;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -25,6 +26,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     permit-urls:
  *       - /auth/login
  *       - /auth/register
+ *     role-rules:
+ *       - path: /actuator/**
+ *         role: ADMIN
+ *       - path: /api/admin/**
+ *         role: ADMIN
+ *       - path: /api/vip/**
+ *         role: VIP
  *     jwt:
  *       algorithm: HS256
  *       secret: my-secret-key-at-least-256-bits
@@ -48,6 +56,9 @@ public class ZerxSecurityProperties {
 
     /** 免认证 URL 列表（精确匹配与 Ant 风格路径） */
     private List<String> permitUrls = List.of("/auth/login", "/auth/register", "/doc.html");
+
+    /** 角色约束规则列表（URL 路径 → 角色映射） */
+    private List<RoleRule> roleRules = new ArrayList<>();
 
     /**
      * 获取安全模块启用状态
@@ -101,6 +112,24 @@ public class ZerxSecurityProperties {
      */
     public void setPermitUrls(List<String> permitUrls) {
         this.permitUrls = permitUrls;
+    }
+
+    /**
+     * 获取角色约束规则列表
+     *
+     * @return 角色约束规则列表
+     */
+    public List<RoleRule> getRoleRules() {
+        return roleRules;
+    }
+
+    /**
+     * 设置角色约束规则列表
+     *
+     * @param roleRules 角色约束规则列表
+     */
+    public void setRoleRules(List<RoleRule> roleRules) {
+        this.roleRules = roleRules;
     }
 
     // ======================== JWT 内部配置类 ========================
@@ -420,6 +449,71 @@ public class ZerxSecurityProperties {
          */
         public void setPreviousPublicKey(String previousPublicKey) {
             this.previousPublicKey = previousPublicKey;
+        }
+    }
+
+    // ======================== 角色规则内部配置类 ========================
+
+    /**
+     * URL 角色约束规则
+     * <p>
+     * 将 URL 路径模式映射到所需角色，支持 Ant 风格通配符。
+     * 通过 {@code zerx.security.role-rules} 配置列表。
+     * </p>
+     *
+     * <h3>配置示例：</h3>
+     * <pre>{@code
+     * role-rules:
+     *   - path: /api/admin/**
+     *     role: ADMIN
+     *   - path: /api/vip/**
+     *     role: VIP
+     * }</pre>
+     *
+     * @author zerx
+     */
+    public static class RoleRule {
+
+        /** URL 路径模式（支持 Ant 风格通配符，如 {@code /api/admin/**}） */
+        private String path;
+
+        /** 所需角色编码（不含 ROLE_ 前缀，框架会自动添加） */
+        private String role;
+
+        /**
+         * 获取 URL 路径模式
+         *
+         * @return 路径模式
+         */
+        public String getPath() {
+            return path;
+        }
+
+        /**
+         * 设置 URL 路径模式
+         *
+         * @param path 路径模式
+         */
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        /**
+         * 获取所需角色编码
+         *
+         * @return 角色编码（不含 ROLE_ 前缀）
+         */
+        public String getRole() {
+            return role;
+        }
+
+        /**
+         * 设置所需角色编码
+         *
+         * @param role 角色编码（不含 ROLE_ 前缀）
+         */
+        public void setRole(String role) {
+            this.role = role;
         }
     }
 }

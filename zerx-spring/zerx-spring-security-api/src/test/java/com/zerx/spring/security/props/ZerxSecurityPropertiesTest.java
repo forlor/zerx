@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -151,6 +152,39 @@ class ZerxSecurityPropertiesTest {
             newJwt.setIssuer("new-issuer");
             props.setJwt(newJwt);
             assertEquals("new-issuer", props.getJwt().getIssuer());
+        }
+
+        @Test
+        @DisplayName("默认角色规则为空列表")
+        void defaultRoleRules_isEmpty() {
+            var props = new ZerxSecurityProperties();
+            assertNotNull(props.getRoleRules());
+            assertTrue(props.getRoleRules().isEmpty());
+        }
+
+        @Test
+        @DisplayName("可自定义角色规则")
+        void setRoleRules() {
+            var props = new ZerxSecurityProperties();
+            var rules = new ArrayList<ZerxSecurityProperties.RoleRule>();
+
+            var rule1 = new ZerxSecurityProperties.RoleRule();
+            rule1.setPath("/api/admin/**");
+            rule1.setRole("ADMIN");
+
+            var rule2 = new ZerxSecurityProperties.RoleRule();
+            rule2.setPath("/api/vip/**");
+            rule2.setRole("VIP");
+
+            rules.add(rule1);
+            rules.add(rule2);
+            props.setRoleRules(rules);
+
+            assertEquals(2, props.getRoleRules().size());
+            assertEquals("/api/admin/**", props.getRoleRules().get(0).getPath());
+            assertEquals("ADMIN", props.getRoleRules().get(0).getRole());
+            assertEquals("/api/vip/**", props.getRoleRules().get(1).getPath());
+            assertEquals("VIP", props.getRoleRules().get(1).getRole());
         }
     }
 }
