@@ -6,6 +6,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,12 +42,16 @@ import java.util.UUID;
  *   <li>Base64 编码的 DER 格式（直接传入 Base64 字符串）</li>
  * </ul>
  *
- * <h3>令牌策略：</h3>
+ * <h3>密钥轮转：</h3>
+ * <p>
+ * 支持通过 {@code zerx.security.jwt.rsa.previous-public-key} 配置旧公钥，
+ * 实现密钥轮转的无缝过渡：
  * <ul>
- *   <li>访问令牌：有效期较短（默认 2h），用于 API 认证，可携带 RBAC 角色信息</li>
- *   <li>刷新令牌：有效期较长（默认 7d），用于续签访问令牌</li>
- *   <li>黑名单：通过缓存实现，TTL 等于令牌剩余有效期</li>
+ *   <li>签发令牌：始终使用当前私钥，并在 JWT header 写入 {@code kid}</li>
+ *   <li>验证令牌：优先使用当前公钥，失败后回退到旧公钥</li>
+ *   <li>过渡期结束后，移除 {@code previous-public-key} 配置即可</li>
  * </ul>
+ * </p>
  *
  * @author zerx
  * @see ZerxTokenService
@@ -77,8 +82,15 @@ public class ZerxRs256TokenService implements ZerxTokenService {
     /** RSA 私钥（用于签名） */
     private final PrivateKey privateKey;
 
-    /** RSA 公钥（用于验证） */
+    /** RSA 当前公钥（用于验证） */
     private final PublicKey publicKey;
+
+    /** RSA 旧公钥（密钥轮转过渡期，可选） */
+    @Nullable
+    private final PublicKey previousPublicKey;
+
+    /** 当前密钥 ID */
+    private final String kid;
 
     /** 安全配置属性 */
     private final ZerxSecurityProperties props;
@@ -90,6 +102,7 @@ public class ZerxRs256TokenService implements ZerxTokenService {
      * 构造 RS256 令牌服务
      * <p>
      * 从配置属性中加载 RSA 密钥对，支持 classpath、file 和 Base64 格式。
+     * 可选加载旧公钥用于密钥轮转过渡。
      * </p>
      *
      * @param props    安全配置属性
@@ -102,14 +115,25 @@ public class ZerxRs256TokenService implements ZerxTokenService {
         var keyConfig = props.getJwt().getRsa();
         this.privateKey = loadPrivateKey(keyConfig.getPrivateKey());
         this.publicKey = loadPublicKey(keyConfig.getPublicKey());
-        log.info("RS256 token service initialized successfully");
+        this.kid = props.getJwt().getKid();
+
+        // 加载旧公钥（密钥轮转过渡期）
+        String previousPubKey = keyConfig.getPreviousPublicKey();
+        if (previousPubKey != null && !previousPubKey.isBlank()) {
+            this.previousPublicKey = loadPublicKey(previousPubKey);
+            log.info("RS256 key rotation enabled: kid={}, previousPublicKey present", kid);
+        } else {
+            this.previousPublicKey = null;
+        }
+
+        log.info("RS256 token service initialized: kid={}", kid);
     }
 
     /**
      * 生成访问令牌（带角色信息）
      * <p>
      * 使用 RSA 私钥签名，subject = userId, claims = {jti, tokenType=access, roles=[...]},
-     * 过期时间 = 当前时间 + accessTokenExpire
+     * 过期时间 = 当前时间 + accessTokenExpire，header 写入 kid。
      * </p>
      */
     @Override
@@ -119,6 +143,7 @@ public class ZerxRs256TokenService implements ZerxTokenService {
         var expiresAt = now.plus(jwtConfig.getAccessTokenExpire());
 
         return Jwts.builder()
+                .header().keyId(kid).and()
                 .subject(String.valueOf(userId))
                 .issuer(jwtConfig.getIssuer())
                 .issuedAt(Date.from(now))
@@ -144,7 +169,7 @@ public class ZerxRs256TokenService implements ZerxTokenService {
     /**
      * {@inheritDoc}
      * <p>
-     * 使用 RSA 私钥签名刷新令牌。
+     * 使用 RSA 私钥签名刷新令牌，header 写入 kid。
      * </p>
      */
     @Override
@@ -154,6 +179,7 @@ public class ZerxRs256TokenService implements ZerxTokenService {
         var expiresAt = now.plus(jwtConfig.getRefreshTokenExpire());
 
         return Jwts.builder()
+                .header().keyId(kid).and()
                 .subject(String.valueOf(userId))
                 .issuer(jwtConfig.getIssuer())
                 .issuedAt(Date.from(now))
@@ -167,15 +193,38 @@ public class ZerxRs256TokenService implements ZerxTokenService {
     /**
      * {@inheritDoc}
      * <p>
-     * 使用 RSA 公钥验证签名，解析 JWT 字符串。
+     * 支持密钥轮转：优先使用当前公钥验证，失败后回退到旧公钥。
      * 如果令牌中没有 roles 声明（旧令牌），默认返回空列表。
      * </p>
      */
     @Override
     @SuppressWarnings("unchecked")
     public ZerxTokenClaims parseToken(String token) {
+        // 优先使用当前公钥验证
+        try {
+            return doParseToken(token, publicKey);
+        } catch (JwtException ex) {
+            // 当前公钥验证失败，尝试旧公钥
+            if (previousPublicKey != null) {
+                log.debug("Token verification failed with current public key, trying previous key: {}",
+                        ex.getMessage());
+                return doParseToken(token, previousPublicKey);
+            }
+            throw ex;
+        }
+    }
+
+    /**
+     * 使用指定公钥解析令牌
+     *
+     * @param token     JWT 令牌字符串
+     * @param verifyKey 验证公钥
+     * @return 令牌声明信息
+     * @throws JwtException 令牌验证失败
+     */
+    private ZerxTokenClaims doParseToken(String token, PublicKey verifyKey) {
         Claims claims = Jwts.parser()
-                .verifyWith(publicKey)
+                .verifyWith(verifyKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -200,7 +249,7 @@ public class ZerxRs256TokenService implements ZerxTokenService {
      * <p>
      * 校验流程：
      * <ol>
-     *   <li>使用 RSA 公钥验证签名</li>
+     *   <li>使用 RSA 公钥验证签名（支持密钥轮转回退）</li>
      *   <li>检查是否过期（jjwt 自动处理）</li>
      *   <li>检查黑名单状态</li>
      * </ol>

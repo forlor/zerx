@@ -88,6 +88,11 @@
             </dependency>
             <dependency>
                 <groupId>com.zerx</groupId>
+                <artifactId>zerx-spring-security-api</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zerx</groupId>
                 <artifactId>zerx-spring-security</artifactId>
                 <version>${zerx.version}</version>
             </dependency>

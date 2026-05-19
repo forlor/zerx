@@ -4,34 +4,37 @@ import com.zerx.spring.security.filter.ZerxJwtAuthenticationFilter;
 import com.zerx.spring.security.handler.ZerxAccessDeniedHandler;
 import com.zerx.spring.security.handler.ZerxAuthenticationEntryPoint;
 import com.zerx.spring.security.props.ZerxSecurityProperties;
+import com.zerx.spring.security.service.ZerxPasswordService;
+import com.zerx.spring.security.token.ZerxRoleService;
 import com.zerx.spring.security.token.ZerxTokenService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import com.zerx.spring.security.service.ZerxPasswordService;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 
-import java.util.Arrays;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.List;
 
 /**
- * Spring Security 核心配置 — SecurityFilterChain、密码编码器、CORS 策略
+ * Spring Security 核心配置 — SecurityFilterChain、密码编码器
  * <p>
  * 配置无状态 RESTful API 安全策略，包括：
  * <ul>
  *   <li>禁用 CSRF（前后端分离架构下无需 CSRF 防护）</li>
- *   <li>配置 CORS 跨域策略</li>
+ *   <li>CORS 委托给 Web 模块的 CorsFilter（zerx.web.cors.*）</li>
  *   <li>禁用 Session（使用 JWT 无状态认证）</li>
  *   <li>配置安全响应头（XSS 防护、内容类型嗅探防护、Frame 防护）</li>
  *   <li>配置 URL 访问权限（免认证 URL + Actuator 端点）</li>
@@ -43,6 +46,7 @@ import java.util.List;
  */
 @Configuration
 @EnableWebSecurity
+@ConditionalOnProperty(prefix = "zerx.security", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(ZerxSecurityProperties.class)
 public class ZerxSecurityConfiguration {
 
@@ -75,15 +79,23 @@ public class ZerxSecurityConfiguration {
         http
                 // 禁用 CSRF（前后端分离，使用 JWT 无状态认证）
                 .csrf(AbstractHttpConfigurer::disable)
-                // 配置 CORS
-                .cors(cors -> cors.configurationSource(corsConfigurationSource(properties)))
+                // CORS 委托给 Web 模块的 CorsFilter（zerx.web.cors.* 配置）
+                .cors(Customizer.withDefaults())
                 // 无状态会话管理
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 安全响应头
                 .headers(headers -> headers
                         .contentTypeOptions(contentTypeOptions -> {})
-                        .frameOptions(frameOptions -> {})
-                        .xssProtection(xss -> xss.disable()))
+                        .frameOptions(frameOptions -> frameOptions.deny())
+                        .xssProtection(xss -> xss.disable())
+                        .addHeaderWriter(new StaticHeadersWriter("X-XSS-Protection", "1; mode=block"))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"))
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                 // URL 访问权限
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(permitUrls.toArray(String[]::new)).permitAll()
@@ -99,53 +111,35 @@ public class ZerxSecurityConfiguration {
     }
 
     /**
-     * 构建 CORS 配置源
+     * 密码编码器 — BCrypt 强度 12
      * <p>
-     * 根据配置属性中的 CORS 设置创建跨域配置。
-     * </p>
-     *
-     * @param properties 安全配置属性
-     * @return CORS 配置源
-     */
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource(ZerxSecurityProperties properties) {
-        var corsConfig = properties.getCors();
-        var configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(corsConfig.getAllowedOrigins());
-        configuration.setAllowedMethods(corsConfig.getAllowedMethods());
-        configuration.setAllowedHeaders(corsConfig.getAllowedHeaders());
-        configuration.setAllowCredentials(corsConfig.isAllowCredentials());
-        configuration.setMaxAge(corsConfig.getMaxAge());
-
-        var source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    /**
-     * 密码编码器 — BCrypt 强度 10
-     * <p>
-     * 使用 BCrypt 算法进行密码哈希，强度为 10（默认值，兼顾安全性和性能）。
+     * 使用 BCrypt 算法进行密码哈希，强度为 12（满足 OWASP 推荐最低安全标准）。
      * </p>
      *
      * @return BCrypt 密码编码器
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10);
+        return new BCryptPasswordEncoder(12);
     }
 
     /**
      * 构建 JWT 认证过滤器 Bean
+     * <p>
+     * 如果存在 {@link ZerxRoleService} Bean，角色将从 SPI 按需加载；
+     * 否则从 JWT claims 中的 roles 字段获取（向后兼容）。
+     * </p>
      *
      * @param tokenService JWT 令牌服务
      * @param properties   安全配置属性
+     * @param roleService  角色加载服务（可选，由业务应用提供）
      * @return JWT 认证过滤器实例
      */
     @Bean
     public ZerxJwtAuthenticationFilter jwtAuthenticationFilter(ZerxTokenService tokenService,
-                                                                ZerxSecurityProperties properties) {
-        return new ZerxJwtAuthenticationFilter(tokenService, properties);
+                                                                ZerxSecurityProperties properties,
+                                                                @Autowired(required = false) ZerxRoleService roleService) {
+        return new ZerxJwtAuthenticationFilter(tokenService, properties, roleService);
     }
 
     /**

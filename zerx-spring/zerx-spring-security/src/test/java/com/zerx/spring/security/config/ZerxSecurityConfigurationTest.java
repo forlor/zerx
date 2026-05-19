@@ -96,7 +96,8 @@ class ZerxSecurityConfigurationTest {
                     org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration.class,
                     org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration.class,
                     org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration.class,
-                    com.zerx.spring.cache.autoconfigure.ZerxCacheAutoConfiguration.class
+                    com.zerx.spring.cache.autoconfigure.ZerxCacheAutoConfiguration.class,
+                    com.zerx.spring.web.config.ZerxObservabilityAutoConfiguration.class
             }
     )
     @org.springframework.boot.context.properties.EnableConfigurationProperties(ZerxSecurityProperties.class)

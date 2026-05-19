@@ -17,6 +17,12 @@
     <description>认证授权 — SecurityFilterChain Lambda DSL、JWT (HS256/RS256)、RBAC、Refresh Token、密码加密</description>
 
     <dependencies>
+        <!-- zerx-spring-security-api: 接口、记录类、配置属性 -->
+        <dependency>
+            <groupId>com.zerx</groupId>
+            <artifactId>zerx-spring-security-api</artifactId>
+        </dependency>
+
         <!-- zerx-spring-web: 统一响应体、请求上下文 -->
         <dependency>
             <groupId>com.zerx</groupId>

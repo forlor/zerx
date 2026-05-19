@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zerx</groupId>
+        <artifactId>zerx-spring</artifactId>
+        <version>${zerx.version}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zerx-spring-security-api</artifactId>
+    <packaging>jar</packaging>
+    <name>Zerx Spring Security API</name>
+    <description>安全抽象接口 — ZerxTokenService 接口、Token 数据模型、配置属性，业务层零 Spring Security 依赖</description>
+
+    <dependencies>
+        <!-- Spring Boot（仅用于 @ConfigurationProperties 注解） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -70,7 +70,7 @@ public interface ZerxTokenService {
      *
      * @param token JWT 令牌字符串
      * @return 令牌声明信息
-     * @throws io.jsonwebtoken.JwtException 令牌格式错误或签名无效
+     * @throws RuntimeException 令牌格式错误、签名无效或已过期
      */
     ZerxTokenClaims parseToken(String token);
 

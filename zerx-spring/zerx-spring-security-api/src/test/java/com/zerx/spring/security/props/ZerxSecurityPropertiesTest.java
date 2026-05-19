@@ -67,24 +67,6 @@ class ZerxSecurityPropertiesTest {
             var props = new ZerxSecurityProperties();
             assertNotNull(props.getJwt().getRsa());
         }
-
-        @Test
-        @DisplayName("默认 CORS 配置正确")
-        void defaultCorsConfig() {
-            var props = new ZerxSecurityProperties();
-            var cors = props.getCors();
-
-            assertNotNull(cors);
-            assertEquals(List.of("*"), cors.getAllowedOrigins());
-            assertTrue(cors.getAllowedMethods().contains("GET"));
-            assertTrue(cors.getAllowedMethods().contains("POST"));
-            assertTrue(cors.getAllowedMethods().contains("PUT"));
-            assertTrue(cors.getAllowedMethods().contains("DELETE"));
-            assertTrue(cors.getAllowedMethods().contains("OPTIONS"));
-            assertEquals(List.of("*"), cors.getAllowedHeaders());
-            assertTrue(cors.isAllowCredentials());
-            assertEquals(3600, cors.getMaxAge());
-        }
     }
 
     @Nested
@@ -162,36 +144,13 @@ class ZerxSecurityPropertiesTest {
         }
 
         @Test
-        @DisplayName("可自定义 CORS 配置")
-        void setCorsConfig() {
-            var props = new ZerxSecurityProperties();
-            var cors = props.getCors();
-            cors.setAllowedOrigins(List.of("https://example.com"));
-            cors.setAllowedMethods(List.of("GET", "POST"));
-            cors.setAllowedHeaders(List.of("Content-Type", "Authorization"));
-            cors.setAllowCredentials(false);
-            cors.setMaxAge(7200);
-
-            assertEquals(List.of("https://example.com"), cors.getAllowedOrigins());
-            assertEquals(List.of("GET", "POST"), cors.getAllowedMethods());
-            assertEquals(List.of("Content-Type", "Authorization"), cors.getAllowedHeaders());
-            assertFalse(cors.isAllowCredentials());
-            assertEquals(7200, cors.getMaxAge());
-        }
-
-        @Test
-        @DisplayName("可整体替换 Jwt 和 Cors 对象")
-        void replaceInnerObjects() {
+        @DisplayName("可整体替换 Jwt 对象")
+        void replaceJwtObject() {
             var props = new ZerxSecurityProperties();
             var newJwt = new ZerxSecurityProperties.Jwt();
             newJwt.setIssuer("new-issuer");
             props.setJwt(newJwt);
             assertEquals("new-issuer", props.getJwt().getIssuer());
-
-            var newCors = new ZerxSecurityProperties.Cors();
-            newCors.setMaxAge(9999);
-            props.setCors(newCors);
-            assertEquals(9999, props.getCors().getMaxAge());
         }
     }
 }

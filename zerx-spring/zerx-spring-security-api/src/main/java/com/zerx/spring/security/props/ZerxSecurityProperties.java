@@ -9,7 +9,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Zerx 安全模块配置属性
  * <p>
  * 通过 {@code application.yml} 中 {@code zerx.security.*} 前缀进行配置，
- * 控制 JWT 签发策略、免认证 URL、跨域策略等安全行为。
+ * 控制 JWT 签发策略和免认证 URL 等安全行为。
+ * </p>
+ * <p>
+ * CORS 跨域配置已统一由 {@code zerx-spring-web} 模块管理，
+ * 请使用 {@code zerx.web.cors.*} 前缀进行配置。
+ * Spring Security 自动委托给 Web 模块注册的 {@code CorsFilter}。
  * </p>
  *
  * <h3>配置示例：</h3>
@@ -28,12 +33,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       rsa:
  *         public-key: classpath:keys/public.pem
  *         private-key: classpath:keys/private.pem
- *     cors:
- *       allowed-origins:
- *         - "*"
- *       allowed-methods:
- *         - GET
- *         - POST
  * }</pre>
  *
  * @author zerx
@@ -49,9 +48,6 @@ public class ZerxSecurityProperties {
 
     /** 免认证 URL 列表（精确匹配与 Ant 风格路径） */
     private List<String> permitUrls = List.of("/auth/login", "/auth/register", "/doc.html");
-
-    /** CORS 跨域配置 */
-    private Cors cors = new Cors();
 
     /**
      * 获取安全模块启用状态
@@ -107,24 +103,6 @@ public class ZerxSecurityProperties {
         this.permitUrls = permitUrls;
     }
 
-    /**
-     * 获取 CORS 跨域配置
-     *
-     * @return CORS 配置对象
-     */
-    public Cors getCors() {
-        return cors;
-    }
-
-    /**
-     * 设置 CORS 跨域配置
-     *
-     * @param cors CORS 配置对象
-     */
-    public void setCors(Cors cors) {
-        this.cors = cors;
-    }
-
     // ======================== JWT 内部配置类 ========================
 
     /**
@@ -161,6 +139,19 @@ public class ZerxSecurityProperties {
 
         /** RSA 密钥配置（RS256 算法时使用） */
         private Rsa rsa = new Rsa();
+
+        /** 当前密钥 ID（写入 JWT header kid） */
+        private String kid = "default";
+
+        /**
+         * HS256 旧密钥（密钥轮转过渡期使用，可选）
+         * <p>
+         * 设置后，验证令牌时会优先使用当前密钥，失败后回退到旧密钥。
+         * 签发令牌始终使用当前密钥。
+         * 所有旧密钥签发的令牌过期后，移除此配置即可。
+         * </p>
+         */
+        private String previousSecret;
 
         /**
          * 获取签名算法
@@ -305,6 +296,42 @@ public class ZerxSecurityProperties {
         public void setRsa(Rsa rsa) {
             this.rsa = rsa;
         }
+
+        /**
+         * 获取当前密钥 ID
+         *
+         * @return 密钥 ID
+         */
+        public String getKid() {
+            return kid;
+        }
+
+        /**
+         * 设置当前密钥 ID
+         *
+         * @param kid 密钥 ID
+         */
+        public void setKid(String kid) {
+            this.kid = kid;
+        }
+
+        /**
+         * 获取 HS256 旧密钥
+         *
+         * @return 旧密钥，未配置时返回 null
+         */
+        public String getPreviousSecret() {
+            return previousSecret;
+        }
+
+        /**
+         * 设置 HS256 旧密钥（密钥轮转过渡期使用）
+         *
+         * @param previousSecret 旧密钥
+         */
+        public void setPreviousSecret(String previousSecret) {
+            this.previousSecret = previousSecret;
+        }
     }
 
     // ======================== RSA 内部配置类 ========================
@@ -330,6 +357,16 @@ public class ZerxSecurityProperties {
 
         /** RSA 私钥（classpath:, file:, 或 base64） */
         private String privateKey;
+
+        /**
+         * RS256 旧公钥（密钥轮转过渡期使用，可选）
+         * <p>
+         * 设置后，验证令牌时会优先使用当前公钥，失败后回退到旧公钥。
+         * 签发令牌始终使用当前私钥。
+         * 所有旧密钥签发的令牌过期后，移除此配置即可。
+         * </p>
+         */
+        private String previousPublicKey;
 
         /**
          * 获取 RSA 公钥
@@ -366,123 +403,23 @@ public class ZerxSecurityProperties {
         public void setPrivateKey(String privateKey) {
             this.privateKey = privateKey;
         }
-    }
-
-    // ======================== CORS 内部配置类 ========================
-
-    /**
-     * CORS 跨域配置
-     * <p>
-     * 控制跨域资源共享策略，包括允许的源、方法、头部等。
-     * </p>
-     *
-     * @author zerx
-     */
-    public static class Cors {
-
-        /** 允许的源，默认允许所有 */
-        private List<String> allowedOrigins = List.of("*");
-
-        /** 允许的 HTTP 方法 */
-        private List<String> allowedMethods = List.of("GET", "POST", "PUT", "DELETE", "OPTIONS");
-
-        /** 允许的请求头 */
-        private List<String> allowedHeaders = List.of("*");
-
-        /** 是否允许携带凭证 */
-        private boolean allowCredentials = true;
-
-        /** 预检请求缓存时间（秒） */
-        private long maxAge = 3600;
 
         /**
-         * 获取允许的源列表
+         * 获取 RS256 旧公钥
          *
-         * @return 允许的源列表
+         * @return 旧公钥，未配置时返回 null
          */
-        public List<String> getAllowedOrigins() {
-            return allowedOrigins;
+        public String getPreviousPublicKey() {
+            return previousPublicKey;
         }
 
         /**
-         * 设置允许的源列表
+         * 设置 RS256 旧公钥（密钥轮转过渡期使用）
          *
-         * @param allowedOrigins 允许的源列表
+         * @param previousPublicKey 旧公钥
          */
-        public void setAllowedOrigins(List<String> allowedOrigins) {
-            this.allowedOrigins = allowedOrigins;
-        }
-
-        /**
-         * 获取允许的 HTTP 方法列表
-         *
-         * @return 允许的 HTTP 方法列表
-         */
-        public List<String> getAllowedMethods() {
-            return allowedMethods;
-        }
-
-        /**
-         * 设置允许的 HTTP 方法列表
-         *
-         * @param allowedMethods 允许的 HTTP 方法列表
-         */
-        public void setAllowedMethods(List<String> allowedMethods) {
-            this.allowedMethods = allowedMethods;
-        }
-
-        /**
-         * 获取允许的请求头列表
-         *
-         * @return 允许的请求头列表
-         */
-        public List<String> getAllowedHeaders() {
-            return allowedHeaders;
-        }
-
-        /**
-         * 设置允许的请求头列表
-         *
-         * @param allowedHeaders 允许的请求头列表
-         */
-        public void setAllowedHeaders(List<String> allowedHeaders) {
-            this.allowedHeaders = allowedHeaders;
-        }
-
-        /**
-         * 是否允许携带凭证
-         *
-         * @return 是否允许携带凭证
-         */
-        public boolean isAllowCredentials() {
-            return allowCredentials;
-        }
-
-        /**
-         * 设置是否允许携带凭证
-         *
-         * @param allowCredentials 是否允许携带凭证
-         */
-        public void setAllowCredentials(boolean allowCredentials) {
-            this.allowCredentials = allowCredentials;
-        }
-
-        /**
-         * 获取预检请求缓存时间（秒）
-         *
-         * @return 预检请求缓存时间
-         */
-        public long getMaxAge() {
-            return maxAge;
-        }
-
-        /**
-         * 设置预检请求缓存时间（秒）
-         *
-         * @param maxAge 预检请求缓存时间
-         */
-        public void setMaxAge(long maxAge) {
-            this.maxAge = maxAge;
+        public void setPreviousPublicKey(String previousPublicKey) {
+            this.previousPublicKey = previousPublicKey;
         }
     }
 }

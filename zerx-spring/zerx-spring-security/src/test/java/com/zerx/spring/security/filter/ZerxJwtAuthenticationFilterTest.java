@@ -306,6 +306,69 @@ class ZerxJwtAuthenticationFilterTest {
     }
 
     @Nested
+    @DisplayName("令牌类型校验测试")
+    class TokenTypeValidationTest {
+
+        @Test
+        @DisplayName("refresh token 被拒绝，不设置 SecurityContext")
+        void refreshToken_rejected() throws Exception {
+            var request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            var response = new MockHttpServletResponse();
+
+            // tokenType 为 refresh，应被拒绝
+            var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
+                    Instant.now(), Instant.now().plusSeconds(3600), "refresh", List.of());
+            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
+            when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+
+            filter.doFilterInternal(request, response, (req, res) -> {});
+
+            assertNull(SecurityContextHolder.getContext().getAuthentication());
+        }
+
+        @Test
+        @DisplayName("refresh token 被拒绝时不修改 RequestContext userId")
+        void refreshToken_doesNotModifyRequestContext() throws Exception {
+            var request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            var response = new MockHttpServletResponse();
+
+            var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
+                    Instant.now(), Instant.now().plusSeconds(3600), "refresh", List.of());
+            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
+            when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+
+            Long originalUserId = 9999L;
+            RequestContext.setUserId(originalUserId);
+
+            filter.doFilterInternal(request, response, (req, res) -> {});
+
+            assertEquals(originalUserId, RequestContext.getUserId());
+        }
+
+        @Test
+        @DisplayName("access token 正常通过令牌类型校验")
+        void accessToken_passesTokenTypeCheck() throws Exception {
+            var request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Bearer " + VALID_TOKEN);
+            var response = new MockHttpServletResponse();
+
+            var claims = new ZerxTokenClaims(TEST_USER_ID, TEST_JTI,
+                    Instant.now(), Instant.now().plusSeconds(3600), "access",
+                    List.of("ADMIN"));
+            when(tokenService.validateToken(VALID_TOKEN)).thenReturn(true);
+            when(tokenService.parseToken(VALID_TOKEN)).thenReturn(claims);
+
+            filter.doFilterInternal(request, response, (req, res) -> {});
+
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            assertNotNull(auth);
+            assertEquals(TEST_USER_ID, auth.getPrincipal());
+        }
+    }
+
+    @Nested
     @DisplayName("自定义请求头配置测试")
     class CustomHeaderConfigTest {
 
