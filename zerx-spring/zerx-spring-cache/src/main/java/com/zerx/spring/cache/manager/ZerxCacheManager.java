@@ -20,6 +20,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * 使 {@code @Cacheable}、{@code @CacheEvict}、{@code @CachePut} 等
  * Spring 原生注解也能使用 Zerx 的缓存基础设施。
  * </p>
+ * <p>
+ * 支持 per-cache-name TTL：通过 {@code zerx.cache.custom-ttls.<cacheName>=30m}
+ * 为不同 cache name 配置独立 TTL，未配置的回退到全局默认值。
+ * </p>
  *
  * @author zerx
  */
@@ -45,8 +49,8 @@ public class ZerxCacheManager implements CacheManager {
     }
 
     private Cache createCache(String name) {
-        Duration defaultTtl = properties.getDefaultTtl();
-        return new ZerxCacheAdapter(name, cacheStore, defaultTtl);
+        Duration ttl = properties.getTtlForCache(name);
+        return new ZerxCacheAdapter(name, cacheStore, ttl);
     }
 
     /**

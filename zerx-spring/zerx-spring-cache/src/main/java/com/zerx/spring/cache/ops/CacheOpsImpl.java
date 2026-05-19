@@ -1,8 +1,13 @@
 package com.zerx.spring.cache.ops;
 
 import com.zerx.spring.cache.CacheConstants;
+import com.zerx.spring.cache.CacheException;
 import com.zerx.spring.cache.CacheOps;
 import com.zerx.spring.cache.CacheStore;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +27,7 @@ import java.util.function.Supplier;
  *     <li>防穿透（anti-penetration）：loader 返回 null 时缓存 NULL_MARKER</li>
  *     <li>防击穿（anti-stampede）：per-key ReentrantLock 互斥锁</li>
  *     <li>防雪崩（anti-avalanche）：由底层 CacheStore 的 TTL 抖动保障</li>
+ *     <li>Micrometer 指标：cache.hits / cache.misses / cache.loads / cache.evictions / cache.load.duration</li>
  * </ul>
  * </p>
  * <p>
@@ -35,8 +41,19 @@ public class CacheOpsImpl implements CacheOps {
 
     private static final Logger log = LoggerFactory.getLogger(CacheOpsImpl.class);
 
+    private static final String METRIC_PREFIX = "zerx.cache";
+
     private final CacheStore store;
     private final Duration nullValueTtl;
+    private final Duration lockTimeout;
+    private final MeterRegistry meterRegistry;
+
+    // Micrometer 计数器（null 时表示未启用）
+    private final Counter hits;
+    private final Counter misses;
+    private final Counter loads;
+    private final Counter evictions;
+    private final Timer loadTimer;
 
     /**
      * per-key 互斥锁映射（防击穿）。
@@ -50,10 +67,57 @@ public class CacheOpsImpl implements CacheOps {
     /**
      * @param store        底层缓存存储
      * @param nullValueTtl 空值缓存 TTL（0 或负值表示不缓存空值）
+     * @param lockTimeout  防击穿互斥锁等待超时（null 表示无限等待）
      */
-    public CacheOpsImpl(CacheStore store, Duration nullValueTtl) {
+    public CacheOpsImpl(CacheStore store, Duration nullValueTtl, Duration lockTimeout) {
+        this(store, nullValueTtl, lockTimeout, getGlobalRegistry());
+    }
+
+    /**
+     * @param store        底层缓存存储
+     * @param nullValueTtl 空值缓存 TTL（0 或负值表示不缓存空值）
+     * @param lockTimeout  防击穿互斥锁等待超时（null 表示无限等待）
+     * @param meterRegistry Micrometer 注册表（null 时不记录指标）
+     */
+    public CacheOpsImpl(CacheStore store, Duration nullValueTtl, Duration lockTimeout,
+                        MeterRegistry meterRegistry) {
         this.store = store;
         this.nullValueTtl = nullValueTtl;
+        this.lockTimeout = lockTimeout;
+        this.meterRegistry = meterRegistry;
+
+        if (meterRegistry != null) {
+            this.hits = Counter.builder(METRIC_PREFIX + ".hits")
+                    .description("Cache hit count")
+                    .register(meterRegistry);
+            this.misses = Counter.builder(METRIC_PREFIX + ".misses")
+                    .description("Cache miss count")
+                    .register(meterRegistry);
+            this.loads = Counter.builder(METRIC_PREFIX + ".loads")
+                    .description("Cache loader execution count")
+                    .register(meterRegistry);
+            this.evictions = Counter.builder(METRIC_PREFIX + ".evictions")
+                    .description("Cache eviction count")
+                    .register(meterRegistry);
+            this.loadTimer = Timer.builder(METRIC_PREFIX + ".load.duration")
+                    .description("Cache loader execution duration")
+                    .register(meterRegistry);
+        } else {
+            this.hits = null;
+            this.misses = null;
+            this.loads = null;
+            this.evictions = null;
+            this.loadTimer = null;
+        }
+    }
+
+    private static MeterRegistry getGlobalRegistry() {
+        try {
+            return Metrics.globalRegistry;
+        } catch (Exception e) {
+            // Micrometer 不在 classpath 上
+            return null;
+        }
     }
 
     @Override
@@ -69,30 +133,63 @@ public class CacheOpsImpl implements CacheOps {
         if (cached.isPresent()) {
             if (CacheConstants.NULL_MARKER.equals(cached.get())) {
                 log.debug("Cache hit null marker (anti-penetration): {}", key);
+                if (hits != null) hits.increment();
                 return null;
             }
             log.debug("Cache hit: {}", key);
+            if (hits != null) hits.increment();
             return (T) cached.get();
         }
 
         // 慢路径：获取 per-key 互斥锁（防击穿）
         ReentrantLock lock = lockMap.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
+        boolean acquired;
+        try {
+            if (lockTimeout != null && lockTimeout.toMillis() > 0) {
+                acquired = lock.tryLock(lockTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                if (!acquired) {
+                    lockMap.remove(key, lock);
+                    throw new CacheException(
+                            CacheException.CACHE_LOCK_TIMEOUT,
+                            "Cache lock acquisition timed out for key: " + key
+                                    + ", timeout: " + lockTimeout);
+                }
+            } else {
+                lock.lock();
+                acquired = true;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            lockMap.remove(key, lock);
+            throw new CacheException(
+                    CacheException.CACHE_LOCK_TIMEOUT,
+                    "Cache lock interrupted for key: " + key, e);
+        }
         try {
             // 双重检查（获取锁后再次确认缓存）
             cached = store.get(key);
             if (cached.isPresent()) {
                 if (CacheConstants.NULL_MARKER.equals(cached.get())) {
                     log.debug("Cache hit null marker after lock (anti-penetration): {}", key);
+                    if (hits != null) hits.increment();
                     return null;
                 }
                 log.debug("Cache hit (after lock): {}", key);
+                if (hits != null) hits.increment();
                 return (T) cached.get();
             }
 
             // 缓存 miss，执行 loader
+            if (misses != null) misses.increment();
             log.debug("Cache miss: {}", key);
-            T value = loader.get();
+
+            T value;
+            if (loadTimer != null) {
+                value = loadTimer.record(() -> loader.get());
+            } else {
+                value = loader.get();
+            }
+            if (loads != null) loads.increment();
 
             if (value != null) {
                 store.set(key, value, Duration.ofMillis(timeUnit.toMillis(ttl)));
@@ -119,8 +216,10 @@ public class CacheOpsImpl implements CacheOps {
     public <T> T get(String key) {
         Optional<Object> cached = store.get(key);
         if (cached.isPresent() && !CacheConstants.NULL_MARKER.equals(cached.get())) {
+            if (hits != null) hits.increment();
             return (T) cached.get();
         }
+        if (misses != null) misses.increment();
         return null;
     }
 
@@ -137,6 +236,7 @@ public class CacheOpsImpl implements CacheOps {
     @Override
     public void evict(String key) {
         store.evict(key);
+        if (evictions != null) evictions.increment();
     }
 
     @Override

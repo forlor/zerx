@@ -21,6 +21,8 @@ class CaffeineCacheStoreTest {
     void setUp() {
         properties = new ZerxCacheProperties();
         properties.setKeyPrefix("test:");
+        // 禁用 access expiry，避免 get() 延长 TTL 影响定时过期测试
+        properties.getCaffeine().setExpireAfterAccess(Duration.ZERO);
         store = new CaffeineCacheStore(properties);
     }
 

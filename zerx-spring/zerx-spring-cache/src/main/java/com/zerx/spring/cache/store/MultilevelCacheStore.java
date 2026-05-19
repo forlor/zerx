@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -173,8 +174,13 @@ public class MultilevelCacheStore implements CacheStore {
         }
         l1.multiEvict(keys);
         l2.multiEvict(keys);
-        // 批量失效通知：发布前缀匹配或逐个通知
-        keys.forEach(this::publishInvalidation);
+        // 批量失效通知：计算公共前缀，优先发单条 prefix 消息
+        String commonPrefix = findCommonPrefix(keys.stream().map(this::withPrefix).toList());
+        if (commonPrefix != null) {
+            publishInvalidation(commonPrefix);
+        } else {
+            keys.forEach(this::publishInvalidation);
+        }
     }
 
     /**
@@ -194,5 +200,42 @@ public class MultilevelCacheStore implements CacheStore {
     String withPrefix(String key) {
         String prefix = properties.getKeyPrefix();
         return key.startsWith(prefix) ? key : prefix + key;
+    }
+
+    /**
+     * 计算一组 fullKey 的最长公共前缀（至少到 ':' 分隔符）。
+     * <p>
+     * 返回的公共前缀会在最后一个 ':' 处截断，确保覆盖所有 key。
+     * 如果 key 数量较少（<= 3）或无公共前缀，返回 null 表示退回逐条通知。
+     * </p>
+     */
+    String findCommonPrefix(List<String> fullKeys) {
+        if (fullKeys.size() <= 3) {
+            return null;
+        }
+        String first = fullKeys.get(0);
+        int prefixEnd = first.length();
+        for (int i = 1; i < fullKeys.size(); i++) {
+            prefixEnd = Math.min(prefixEnd, commonPrefixLength(first, fullKeys.get(i)));
+            if (prefixEnd == 0) {
+                return null;
+            }
+        }
+        // 在最后一个 ':' 处截断，确保前缀有效
+        int lastColon = first.lastIndexOf(':', prefixEnd - 1);
+        if (lastColon > 0) {
+            return first.substring(0, lastColon + 1);
+        }
+        // 无 ':' 分隔符，返回 null 退回逐条
+        return null;
+    }
+
+    private int commonPrefixLength(String a, String b) {
+        int len = Math.min(a.length(), b.length());
+        int i = 0;
+        while (i < len && a.charAt(i) == b.charAt(i)) {
+            i++;
+        }
+        return i;
     }
 }

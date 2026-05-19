@@ -27,7 +27,7 @@ class CacheOpsImplTest {
         properties = new ZerxCacheProperties();
         properties.setKeyPrefix("test:");
         store = new CaffeineCacheStore(properties);
-        cacheOps = new CacheOpsImpl(store, properties.getNullValueTtl());
+        cacheOps = new CacheOpsImpl(store, properties.getNullValueTtl(), properties.getLockTimeout(), null);
     }
 
     @Test

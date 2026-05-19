@@ -54,6 +54,20 @@
             <artifactId>spring-expression</artifactId>
         </dependency>
 
+        <!-- Micrometer 指标（可选，不引入时不记录指标） -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Jackson（序列化策略需要，即使 Redis 为 optional） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

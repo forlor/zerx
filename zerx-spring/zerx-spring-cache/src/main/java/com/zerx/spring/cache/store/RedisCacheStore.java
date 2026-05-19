@@ -6,15 +6,14 @@ import com.zerx.spring.cache.CacheStore;
 import com.zerx.spring.cache.properties.ZerxCacheProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.types.Expiration;
+import org.springframework.data.redis.serializer.RedisSerializer;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -149,19 +148,29 @@ public class RedisCacheStore implements CacheStore {
 
     /**
      * 使用 Pipeline 批量写入，减少网络往返次数。
+     * <p>
+     * 通过 {@link RedisTemplate#getValueSerializer()} 统一序列化，
+     * 确保与单条 {@link #set} 操作使用相同的序列化路径。
+     * </p>
      */
     @Override
-    @SuppressWarnings("unchecked")
     public void multiSet(Map<String, Object> entries, Duration ttl) {
         if (entries.isEmpty()) {
             return;
         }
         try {
             redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                RedisSerializer<String> keySerializer =
+                        (RedisSerializer<String>) redisTemplate.getKeySerializer();
+                RedisSerializer<Object> valueSerializer =
+                        (RedisSerializer<Object>) redisTemplate.getValueSerializer();
+
                 entries.forEach((key, value) -> {
                     String fullKey = withPrefix(key);
-                    byte[] keyBytes = fullKey.getBytes(StandardCharsets.UTF_8);
-                    byte[] valueBytes = serialize(value);
+                    byte[] keyBytes = keySerializer.serialize(fullKey);
+                    byte[] valueBytes = (value != null)
+                            ? valueSerializer.serialize(value)
+                            : new byte[0];
                     long ttlMillis = withJitter(ttl.toMillis());
                     connection.stringCommands().set(keyBytes, valueBytes,
                             Expiration.milliseconds(ttlMillis),
@@ -197,18 +206,5 @@ public class RedisCacheStore implements CacheStore {
     String withPrefix(String key) {
         String prefix = properties.getKeyPrefix();
         return key.startsWith(prefix) ? key : prefix + key;
-    }
-
-    @SuppressWarnings("unchecked")
-    private byte[] serialize(Object value) {
-        if (value == null) {
-            return new byte[0];
-        }
-        org.springframework.data.redis.serializer.RedisSerializer<Object> serializer =
-                (org.springframework.data.redis.serializer.RedisSerializer<Object>) redisTemplate.getValueSerializer();
-        if (serializer != null) {
-            return serializer.serialize(value);
-        }
-        return value.toString().getBytes(StandardCharsets.UTF_8);
     }
 }

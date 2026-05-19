@@ -3,6 +3,8 @@ package com.zerx.spring.cache.properties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Zerx 缓存配置属性。
@@ -63,6 +65,28 @@ public class ZerxCacheProperties {
     /** Caffeine 本地缓存配置 */
     private CaffeineSpec caffeine = new CaffeineSpec();
 
+    /**
+     * 自定义 per-cache-name TTL 配置。
+     * <p>
+     * 当 Spring Cache 原生 {@code @Cacheable("userCache")} 使用时，
+     * 不同的 cache name 可配置不同的 TTL。未配置的回退到全局 {@link #defaultTtl}。
+     * </p>
+     * <pre>{@code
+     * zerx:
+     *   cache:
+     *     custom-ttls:
+     *       userCache: 60m
+     *       configCache: 24h
+     * }</pre>
+     */
+    private Map<String, Duration> customTtls = new HashMap<>();
+
+    /** 获取指定 cache name 的 TTL，未配置时回退到全局默认值 */
+    public Duration getTtlForCache(String cacheName) {
+        Duration custom = customTtls.get(cacheName);
+        return custom != null ? custom : defaultTtl;
+    }
+
     // ======================== getter/setter ========================
 
     public CacheType getType() { return type; }
@@ -92,6 +116,9 @@ public class ZerxCacheProperties {
     public CaffeineSpec getCaffeine() { return caffeine; }
     public void setCaffeine(CaffeineSpec caffeine) { this.caffeine = caffeine; }
 
+    public Map<String, Duration> getCustomTtls() { return customTtls; }
+    public void setCustomTtls(Map<String, Duration> customTtls) { this.customTtls = customTtls; }
+
     // ======================== 枚举定义 ========================
 
     /**
@@ -111,8 +138,8 @@ public class ZerxCacheProperties {
      * <ul>
      *     <li>{@code JACKSON}：使用 GenericJackson2JsonRedisSerializer，支持多态，
      *         值中携带 {@code @class} 类型信息，兼容性最好，但体积较大</li>
-     *     <li>{@code JSON}：使用 Jackson + 不带类型头的序列化，体积更小，
-     *         但要求缓存值类型固定（建议业务层统一使用 DTO）</li>
+     *     <li>{@code JSON}：使用 Jackson 无类型头序列化，体积更小，
+     *         反序列化时统一为 LinkedHashMap，适合缓存值类型固定且业务自行转型的场景</li>
      * </ul>
      */
     public enum SerializerType {

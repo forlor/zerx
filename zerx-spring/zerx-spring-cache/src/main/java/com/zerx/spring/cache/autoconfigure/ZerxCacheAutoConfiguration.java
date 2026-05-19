@@ -12,6 +12,7 @@ import com.zerx.spring.cache.store.MultilevelCacheStore;
 import com.zerx.spring.cache.store.RedisCacheStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -178,7 +179,7 @@ public class ZerxCacheAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(CacheOps.class)
     public CacheOps cacheOps(CacheStore cacheStore, ZerxCacheProperties properties) {
-        return new CacheOpsImpl(cacheStore, properties.getNullValueTtl());
+        return new CacheOpsImpl(cacheStore, properties.getNullValueTtl(), properties.getLockTimeout());
     }
 
     /**
@@ -204,15 +205,51 @@ public class ZerxCacheAutoConfiguration {
         return new ZerxCacheAspect(cacheOps, cacheStore, properties);
     }
 
+    // ======================== Micrometer 指标绑定 ========================
+
+    /**
+     * 当 Caffeine 开启 recordStats 且 Micrometer MeterRegistry 存在时，
+     * 自动将 Caffeine 统计信息绑定到 MeterRegistry。
+     */
+    @Configuration
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
+    @ConditionalOnBean(io.micrometer.core.instrument.MeterRegistry.class)
+    @ConditionalOnProperty(prefix = "zerx.cache.caffeine", name = "record-stats", havingValue = "true")
+    static class CaffeineMetricsConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "zerxCaffeineCacheMetrics")
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        public io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics zerxCaffeineCacheMetrics(
+                CacheStore cacheStore) {
+            if (cacheStore instanceof CaffeineCacheStore caffeineStore) {
+                return new io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics(
+                        caffeineStore.getNativeCache(), "zerx-caffeine-cache", java.util.Collections.emptyList());
+            }
+            // 非纯 Caffeine 模式（如 Multilevel），跳过
+            return null;
+        }
+    }
+
     // ======================== 序列化策略 ========================
 
     /**
      * 根据配置选择 Redis 值序列化器。
+     * <ul>
+     *     <li>{@code JACKSON}：GenericJackson2JsonRedisSerializer（带 {@code @class} 类型头）</li>
+     *     <li>{@code JSON}：GenericJackson2JsonRedisSerializer（关闭类型头写入，体积更小）</li>
+     * </ul>
      */
     static RedisSerializer<Object> resolveValueSerializer(ZerxCacheProperties properties) {
         return switch (properties.getSerializer()) {
             case JACKSON -> new GenericJackson2JsonRedisSerializer();
-            case JSON -> new GenericJackson2JsonRedisSerializer();
+            case JSON -> {
+                // 无类型头序列化：使用纯 ObjectMapper，不激活 DefaultTyping
+                com.fasterxml.jackson.databind.ObjectMapper mapper =
+                        new com.fasterxml.jackson.databind.ObjectMapper();
+                mapper.findAndRegisterModules();
+                yield new GenericJackson2JsonRedisSerializer(mapper);
+            }
         };
     }
 }

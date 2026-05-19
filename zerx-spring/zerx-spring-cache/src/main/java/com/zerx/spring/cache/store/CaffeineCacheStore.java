@@ -47,9 +47,16 @@ public class CaffeineCacheStore implements CacheStore {
     private final Cache<String, Object> cache;
     private final ZerxCacheProperties properties;
 
+    private static final long DISABLE_ACCESS_EXPIRY = -1L;
+
+    private final long accessExpiryNanos;
+
     public CaffeineCacheStore(ZerxCacheProperties properties) {
         this.properties = properties;
         ZerxCacheProperties.CaffeineSpec spec = properties.getCaffeine();
+        // 预计算 access expiry 纳秒值，避免每次调用都转换
+        this.accessExpiryNanos = spec.getExpireAfterAccess().toNanos();
+
         Caffeine<Object, Object> builder = Caffeine.newBuilder()
                 .maximumSize(spec.getMaxSize())
                 .expireAfter(new Expiry<Object, Object>() {
@@ -68,6 +75,10 @@ public class CaffeineCacheStore implements CacheStore {
 
                     @Override
                     public long expireAfterRead(Object key, Object value, long currentTime, long currentDuration) {
+                        // 访问后延长至 accessExpiryNanos，但不超过 per-entry 剩余时间
+                        if (accessExpiryNanos > 0) {
+                            return Math.max(currentDuration, accessExpiryNanos);
+                        }
                         return currentDuration;
                     }
                 });
@@ -137,11 +148,24 @@ public class CaffeineCacheStore implements CacheStore {
     }
 
     /**
+     * 获取底层 Caffeine Cache 实例。
+     * <p>
+     * 可用于绑定 Micrometer CaffeineCacheMetrics 或直接访问统计信息。
+     * </p>
+     *
+     * @return 底层 Caffeine Cache 实例
+     */
+    @SuppressWarnings("unchecked")
+    public com.github.benmanes.caffeine.cache.Cache<String, Object> getNativeCache() {
+        return cache;
+    }
+
+    /**
      * 给 TTL 添加随机抖动（防雪崩）。
      */
     long withJitter(long ttlNanos) {
         double jitter = CacheConstants.JITTER_MIN + Math.random() * (CacheConstants.JITTER_MAX - CacheConstants.JITTER_MIN);
-        return (long) (ttlNanos * jitter);
+        return Math.max(1, (long) (ttlNanos * jitter));
     }
 
     String withPrefix(String key) {
