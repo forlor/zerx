@@ -62,6 +62,12 @@ public class ZerxWebProperties {
     /** HTTP 客户端配置 */
     private HttpClient httpClient = new HttpClient();
 
+    /** 限流配置 */
+    private RateLimit rateLimit = new RateLimit();
+
+    /** 幂等性配置 */
+    private Idempotent idempotent = new Idempotent();
+
     /**
      * 获取是否启用统一响应封装
      *
@@ -168,6 +174,42 @@ public class ZerxWebProperties {
      */
     public void setHttpClient(HttpClient httpClient) {
         this.httpClient = httpClient;
+    }
+
+    /**
+     * 获取限流配置
+     *
+     * @return RateLimit 配置对象
+     */
+    public RateLimit getRateLimit() {
+        return rateLimit;
+    }
+
+    /**
+     * 设置限流配置
+     *
+     * @param rateLimit RateLimit 配置对象
+     */
+    public void setRateLimit(RateLimit rateLimit) {
+        this.rateLimit = rateLimit;
+    }
+
+    /**
+     * 获取幂等性配置
+     *
+     * @return Idempotent 配置对象
+     */
+    public Idempotent getIdempotent() {
+        return idempotent;
+    }
+
+    /**
+     * 设置幂等性配置
+     *
+     * @param idempotent Idempotent 配置对象
+     */
+    public void setIdempotent(Idempotent idempotent) {
+        this.idempotent = idempotent;
     }
 
     /**
@@ -601,6 +643,50 @@ public class ZerxWebProperties {
 
         public void setSensitiveHeaderMaskingEnabled(boolean sensitiveHeaderMaskingEnabled) {
             this.sensitiveHeaderMaskingEnabled = sensitiveHeaderMaskingEnabled;
+        }
+    }
+
+    /**
+     * 限流配置属性
+     * <p>
+     * 控制基于 {@link com.zerx.spring.web.annotation.RateLimit} 注解的限流行为。
+     * </p>
+     *
+     * @author zerx
+     */
+    public static class RateLimit {
+
+        /** 是否启用限流切面（关闭后 @RateLimit 注解不生效） */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    /**
+     * 幂等性配置属性
+     * <p>
+     * 控制基于 {@link com.zerx.spring.web.annotation.Idempotent} 注解的幂等性行为。
+     * </p>
+     *
+     * @author zerx
+     */
+    public static class Idempotent {
+
+        /** 是否启用幂等性切面（关闭后 @Idempotent 注解不生效） */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 }

@@ -5,6 +5,7 @@ import com.zerx.spring.security.handler.ZerxAccessDeniedHandler;
 import com.zerx.spring.security.handler.ZerxAuthenticationEntryPoint;
 import com.zerx.spring.security.properties.ZerxSecurityProperties;
 import com.zerx.spring.security.service.ZerxPasswordService;
+import com.zerx.spring.security.token.ZerxPermissionService;
 import com.zerx.spring.security.token.ZerxRoleService;
 import com.zerx.spring.security.token.ZerxTokenService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -154,18 +155,21 @@ public class ZerxSecurityConfiguration {
      * <p>
      * 如果存在 {@link ZerxRoleService} Bean，角色将从 SPI 按需加载；
      * 否则从 JWT claims 中的 roles 字段获取（向后兼容）。
+     * 如果存在 {@link ZerxPermissionService} Bean，权限将从 SPI 实时加载。
      * </p>
      *
-     * @param tokenService JWT 令牌服务
-     * @param properties   安全配置属性
-     * @param roleService  角色加载服务（可选，由业务应用提供）
+     * @param tokenService      JWT 令牌服务
+     * @param properties        安全配置属性
+     * @param roleService       角色加载服务（可选，由业务应用提供）
+     * @param permissionService 权限加载服务（可选，由业务应用提供）
      * @return JWT 认证过滤器实例
      */
     @Bean
     public ZerxJwtAuthenticationFilter jwtAuthenticationFilter(ZerxTokenService tokenService,
                                                                 ZerxSecurityProperties properties,
-                                                                @Autowired(required = false) ZerxRoleService roleService) {
-        return new ZerxJwtAuthenticationFilter(tokenService, properties, roleService);
+                                                                @Autowired(required = false) ZerxRoleService roleService,
+                                                                @Autowired(required = false) ZerxPermissionService permissionService) {
+        return new ZerxJwtAuthenticationFilter(tokenService, properties, roleService, permissionService);
     }
 
     /**

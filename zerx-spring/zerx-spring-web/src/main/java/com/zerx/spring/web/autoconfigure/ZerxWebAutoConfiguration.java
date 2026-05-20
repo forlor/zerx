@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.logging.OpLogContextExtractor;
 import com.zerx.spring.web.advise.GlobalExceptionHandler;
 import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
+import com.zerx.spring.web.aspect.IdempotentAspect;
+import com.zerx.spring.web.aspect.RateLimitAspect;
 import com.zerx.spring.web.config.ZerxCorsAutoConfiguration;
 import com.zerx.spring.web.filter.AccessLogFilter;
 import com.zerx.spring.web.filter.TraceFilter;
@@ -122,5 +124,37 @@ public class ZerxWebAutoConfiguration {
     @ConditionalOnMissingBean(OpLogContextExtractor.class)
     public OpLogContextExtractor opLogContextExtractor() {
         return new RequestContextOpLogContextExtractor();
+    }
+
+    /**
+     * 注册限流切面
+     * <p>
+     * 当 {@code zerx.web.rate-limit.enabled=true}（默认）时激活，
+     * 拦截标注了 {@link com.zerx.spring.web.annotation.RateLimit} 的方法。
+     * </p>
+     *
+     * @return RateLimitAspect 实例
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "zerx.web.rate-limit", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    public RateLimitAspect rateLimitAspect() {
+        return new RateLimitAspect();
+    }
+
+    /**
+     * 注册幂等性切面
+     * <p>
+     * 当 {@code zerx.web.idempotent.enabled=true}（默认）时激活，
+     * 拦截标注了 {@link com.zerx.spring.web.annotation.Idempotent} 的方法。
+     * </p>
+     *
+     * @return IdempotentAspect 实例
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "zerx.web.idempotent", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    public IdempotentAspect idempotentAspect() {
+        return new IdempotentAspect();
     }
 }

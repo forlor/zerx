@@ -23,6 +23,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Spring AOP (限流/幂等性切面) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Micrometer Observation API (optional — 用于 HTTP 可观测性) -->
         <dependency>
             <groupId>io.micrometer</groupId>

@@ -6,6 +6,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 安全工具类 — 便捷获取当前认证用户信息
@@ -24,6 +25,12 @@ import java.util.Optional;
  *
  * // 检查是否具有指定角色
  * boolean isAdmin = ZerxSecurityUtils.hasRole("ADMIN");
+ *
+ * // 检查是否具有指定权限
+ * boolean canCreate = ZerxSecurityUtils.hasPermission("user:create");
+ *
+ * // 检查是否具有任一权限
+ * boolean canExport = ZerxSecurityUtils.hasAnyPermission("order:export", "order:exportAll");
  *
  * // 判断是否已认证
  * boolean authenticated = ZerxSecurityUtils.isAuthenticated();
@@ -144,6 +151,62 @@ public final class ZerxSecurityUtils {
         String name = auth.getPrincipal().toString();
         // Spring Security 匿名用户的 principal 为 "anonymousUser"
         return !"anonymousUser".equals(name);
+    }
+
+    /** 权限 authority 前缀，与 {@code ZerxJwtAuthenticationFilter} 中的格式一致 */
+    private static final String PERM_PREFIX = "PERM_";
+
+    /**
+     * 获取当前用户的权限列表
+     * <p>
+     * 从 {@link Authentication#getAuthorities()} 中提取以 {@code PERM_} 为前缀的权限，
+     * 自动去除前缀后返回原始权限编码。
+     * </p>
+     *
+     * @return 权限编码列表（不含 PERM_ 前缀），未认证或无权限时返回空列表
+     */
+    public static List<String> getPermissions() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null) {
+            return List.of();
+        }
+        return auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(authStr -> authStr.startsWith(PERM_PREFIX))
+                .map(authStr -> authStr.substring(PERM_PREFIX.length()))
+                .toList();
+    }
+
+    /**
+     * 判断当前用户是否拥有指定权限
+     *
+     * @param permission 权限编码（如 {@code user:create}），不含 PERM_ 前缀
+     * @return 拥有该权限返回 {@code true}，否则返回 {@code false}
+     */
+    public static boolean hasPermission(String permission) {
+        if (permission == null || permission.isBlank()) {
+            return false;
+        }
+        return getPermissions().contains(permission);
+    }
+
+    /**
+     * 判断当前用户是否拥有任一指定权限
+     *
+     * @param permissions 权限编码列表，不含 PERM_ 前缀
+     * @return 拥有其中任一权限返回 {@code true}，否则返回 {@code false}
+     */
+    public static boolean hasAnyPermission(String... permissions) {
+        if (permissions == null || permissions.length == 0) {
+            return false;
+        }
+        Set<String> currentPermissions = Set.copyOf(getPermissions());
+        for (String permission : permissions) {
+            if (permission != null && !permission.isBlank() && currentPermissions.contains(permission)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

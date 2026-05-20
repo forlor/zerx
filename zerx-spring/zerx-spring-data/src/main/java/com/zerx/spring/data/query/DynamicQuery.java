@@ -35,12 +35,14 @@ import java.util.Optional;
  * <h3>支持的特性：</h3>
  * <ul>
  *     <li>WHERE 条件：eq / ne / like / notLike / in / notIn / between / ge / gt / le / lt / isNull / isNotNull / raw</li>
+ *     <li>子查询：inSubQuery / notInSubQuery / exists / notExists</li>
  *     <li>OR 条件组：or / endOr</li>
  *     <li>JOIN：leftJoin / innerJoin / rightJoin / crossJoin</li>
  *     <li>GROUP BY / HAVING</li>
  *     <li>ORDER BY（支持多列排序）</li>
  *     <li>DISTINCT</li>
  *     <li>分页：limit / offset / page</li>
+ *     <li>UNION / UNION ALL</li>
  * </ul>
  *
  * @author zerx
@@ -290,6 +292,65 @@ public class DynamicQuery {
         if (values != null) {
             params.addAll(List.of(values));
         }
+        return this;
+    }
+
+    // ======================== 子查询 ========================
+
+    /**
+     * WHERE ... IN (子查询)。
+     * <p>
+     * 将子查询 DynamicQuery 的 SQL 包裹在括号中，参数合并到主查询。
+     * </p>
+     *
+     * @param column   列名
+     * @param subQuery 子查询 DynamicQuery 实例
+     * @return 当前实例
+     */
+    public DynamicQuery inSubQuery(String column, DynamicQuery subQuery) {
+        appendWhere();
+        sql.append(column).append(" IN (").append(subQuery.sql).append(')');
+        params.addAll(subQuery.params);
+        return this;
+    }
+
+    /**
+     * WHERE ... NOT IN (子查询)。
+     *
+     * @param column   列名
+     * @param subQuery 子查询 DynamicQuery 实例
+     * @return 当前实例
+     */
+    public DynamicQuery notInSubQuery(String column, DynamicQuery subQuery) {
+        appendWhere();
+        sql.append(column).append(" NOT IN (").append(subQuery.sql).append(')');
+        params.addAll(subQuery.params);
+        return this;
+    }
+
+    /**
+     * WHERE EXISTS (子查询)。
+     *
+     * @param subQuery 子查询 DynamicQuery 实例
+     * @return 当前实例
+     */
+    public DynamicQuery exists(DynamicQuery subQuery) {
+        appendWhere();
+        sql.append("EXISTS (").append(subQuery.sql).append(')');
+        params.addAll(subQuery.params);
+        return this;
+    }
+
+    /**
+     * WHERE NOT EXISTS (子查询)。
+     *
+     * @param subQuery 子查询 DynamicQuery 实例
+     * @return 当前实例
+     */
+    public DynamicQuery notExists(DynamicQuery subQuery) {
+        appendWhere();
+        sql.append("NOT EXISTS (").append(subQuery.sql).append(')');
+        params.addAll(subQuery.params);
         return this;
     }
 
@@ -634,6 +695,59 @@ public class DynamicQuery {
      */
     public Object[] getParams() {
         return params.toArray();
+    }
+
+    // ======================== UNION ========================
+
+    /**
+     * UNION 查询结果，包含合并后的 SQL 和参数。
+     */
+    public record UnionQuery(String sql, List<Object> params) {}
+
+    /**
+     * 合并多个 DynamicQuery 的 UNION ALL 查询。
+     * <p>
+     * 所有子查询必须具有相同的列结构。
+     * 合并后的查询继承所有子查询的参数（按出现顺序）。
+     * </p>
+     *
+     * @param queries 要合并的查询列表
+     * @return 包含合并后 SQL 和参数的 UnionQuery 实例
+     */
+    public static UnionQuery unionAll(DynamicQuery... queries) {
+        StringBuilder unionSql = new StringBuilder();
+        List<Object> allParams = new java.util.ArrayList<>();
+        for (int i = 0; i < queries.length; i++) {
+            if (i > 0) {
+                unionSql.append(" UNION ALL ");
+            }
+            unionSql.append(queries[i].sql);
+            allParams.addAll(queries[i].params);
+        }
+        return new UnionQuery(unionSql.toString(), allParams);
+    }
+
+    /**
+     * 合并多个 DynamicQuery 的 UNION 查询（去重）。
+     * <p>
+     * 所有子查询必须具有相同的列结构。
+     * 合并后的查询继承所有子查询的参数（按出现顺序）。
+     * </p>
+     *
+     * @param queries 要合并的查询列表
+     * @return 包含合并后 SQL 和参数的 UnionQuery 实例
+     */
+    public static UnionQuery union(DynamicQuery... queries) {
+        StringBuilder unionSql = new StringBuilder();
+        List<Object> allParams = new java.util.ArrayList<>();
+        for (int i = 0; i < queries.length; i++) {
+            if (i > 0) {
+                unionSql.append(" UNION ");
+            }
+            unionSql.append(queries[i].sql);
+            allParams.addAll(queries[i].params);
+        }
+        return new UnionQuery(unionSql.toString(), allParams);
     }
 
     // ======================== 内部方法 ========================
