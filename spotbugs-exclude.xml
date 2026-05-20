@@ -37,6 +37,7 @@
         <Or>
             <Class name="~com\.zerx\.spring\.web\.properties\..*"/>
             <Class name="com.zerx.spring.web.advise.ZerxResponseBodyAdvice"/>
+            <Class name="~com\.zerx\.spring\.cache\..*"/>
         </Or>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>

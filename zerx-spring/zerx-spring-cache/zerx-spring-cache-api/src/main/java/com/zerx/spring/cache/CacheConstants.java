@@ -7,7 +7,8 @@ package com.zerx.spring.cache;
  */
 public final class CacheConstants {
 
-    private CacheConstants() {}
+    private CacheConstants() {
+    }
 
     /**
      * 空值标记（防穿透）。

@@ -1,15 +1,5 @@
 package com.zerx.spring.cache.autoconfigure;
 
-import com.zerx.spring.cache.CacheOps;
-import com.zerx.spring.cache.CacheStore;
-import com.zerx.spring.cache.aspect.ZerxCacheAspect;
-import com.zerx.spring.cache.config.CacheInvalidationListener;
-import com.zerx.spring.cache.manager.ZerxCacheManager;
-import com.zerx.spring.cache.ops.CacheOpsImpl;
-import com.zerx.spring.cache.properties.ZerxCacheProperties;
-import com.zerx.spring.cache.store.CaffeineCacheStore;
-import com.zerx.spring.cache.store.MultilevelCacheStore;
-import com.zerx.spring.cache.store.RedisCacheStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -26,6 +16,17 @@ import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
+
+import com.zerx.spring.cache.CacheOps;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.aspect.ZerxCacheAspect;
+import com.zerx.spring.cache.config.CacheInvalidationListener;
+import com.zerx.spring.cache.manager.ZerxCacheManager;
+import com.zerx.spring.cache.ops.CacheOpsImpl;
+import com.zerx.spring.cache.properties.ZerxCacheProperties;
+import com.zerx.spring.cache.store.CaffeineCacheStore;
+import com.zerx.spring.cache.store.MultilevelCacheStore;
+import com.zerx.spring.cache.store.RedisCacheStore;
 
 /**
  * Zerx 缓存自动配置。

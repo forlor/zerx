@@ -1,9 +1,12 @@
 package com.zerx.spring.cache.ops;
 
-import com.zerx.spring.cache.CacheConstants;
-import com.zerx.spring.cache.CacheException;
-import com.zerx.spring.cache.CacheOps;
-import com.zerx.spring.cache.CacheStore;
+import java.time.Duration;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
+
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
@@ -11,12 +14,10 @@ import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
+import com.zerx.spring.cache.CacheConstants;
+import com.zerx.spring.cache.CacheException;
+import com.zerx.spring.cache.CacheOps;
+import com.zerx.spring.cache.CacheStore;
 
 /**
  * CacheOps 默认实现 — 基于 {@link CacheStore} 封装 Cache-Aside 模式。
@@ -39,7 +40,7 @@ import java.util.function.Supplier;
  */
 public class CacheOpsImpl implements CacheOps {
 
-    private static final Logger log = LoggerFactory.getLogger(CacheOpsImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CacheOpsImpl.class);
 
     private static final String METRIC_PREFIX = "zerx.cache";
 
@@ -132,11 +133,11 @@ public class CacheOpsImpl implements CacheOps {
         Optional<Object> cached = store.get(key);
         if (cached.isPresent()) {
             if (CacheConstants.NULL_MARKER.equals(cached.get())) {
-                log.debug("Cache hit null marker (anti-penetration): {}", key);
+                LOG.debug("Cache hit null marker (anti-penetration): {}", key);
                 if (hits != null) hits.increment();
                 return null;
             }
-            log.debug("Cache hit: {}", key);
+            LOG.debug("Cache hit: {}", key);
             if (hits != null) hits.increment();
             return (T) cached.get();
         }
@@ -170,18 +171,18 @@ public class CacheOpsImpl implements CacheOps {
             cached = store.get(key);
             if (cached.isPresent()) {
                 if (CacheConstants.NULL_MARKER.equals(cached.get())) {
-                    log.debug("Cache hit null marker after lock (anti-penetration): {}", key);
+                    LOG.debug("Cache hit null marker after lock (anti-penetration): {}", key);
                     if (hits != null) hits.increment();
                     return null;
                 }
-                log.debug("Cache hit (after lock): {}", key);
+                LOG.debug("Cache hit (after lock): {}", key);
                 if (hits != null) hits.increment();
                 return (T) cached.get();
             }
 
             // 缓存 miss，执行 loader
             if (misses != null) misses.increment();
-            log.debug("Cache miss: {}", key);
+            LOG.debug("Cache miss: {}", key);
 
             T value;
             if (loadTimer != null) {
@@ -196,7 +197,7 @@ public class CacheOpsImpl implements CacheOps {
             } else if (nullValueTtl != null && nullValueTtl.toMillis() > 0) {
                 // 防穿透：缓存空值标记
                 store.set(key, CacheConstants.NULL_MARKER, Duration.ofMillis(nullValueTtl.toMillis()));
-                log.debug("Cache null value (anti-penetration): {}", key);
+                LOG.debug("Cache null value (anti-penetration): {}", key);
             }
 
             return value;

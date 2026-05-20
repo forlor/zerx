@@ -1,9 +1,14 @@
 package com.zerx.spring.cache.store;
 
-import com.zerx.spring.cache.CacheConstants;
-import com.zerx.spring.cache.CacheException;
-import com.zerx.spring.cache.CacheStore;
-import com.zerx.spring.cache.properties.ZerxCacheProperties;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.RedisStringCommands;
@@ -14,14 +19,10 @@ import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import com.zerx.spring.cache.CacheConstants;
+import com.zerx.spring.cache.CacheException;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.properties.ZerxCacheProperties;
 
 /**
  * 基于 Redis 的分布式缓存 CacheStore 实现。
@@ -39,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class RedisCacheStore implements CacheStore {
 
-    private static final Logger log = LoggerFactory.getLogger(RedisCacheStore.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RedisCacheStore.class);
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final ZerxCacheProperties properties;
@@ -100,7 +101,7 @@ public class RedisCacheStore implements CacheStore {
 
             if (!matchedKeys.isEmpty()) {
                 redisTemplate.delete(matchedKeys);
-                log.debug("Evicted {} keys with prefix: {}", matchedKeys.size(), fullPrefix);
+                LOG.debug("Evicted {} keys with prefix: {}", matchedKeys.size(), fullPrefix);
             }
         } catch (Exception e) {
             throw new CacheException(CacheException.CACHE_ERROR,
@@ -134,7 +135,7 @@ public class RedisCacheStore implements CacheStore {
                 int index = 0;
                 for (String logicalKey : keys) {
                     Object value = values.get(index);
-                    if (value != null && !CacheConstants.NULL_MARKER.equals(value)) {
+                    if (value != null) {
                         result.put(logicalKey, value);
                     }
                     index++;

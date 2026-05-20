@@ -137,15 +137,16 @@ class RedisCacheStoreTest {
     }
 
     @Test
-    void multiGet_excludes_null_marker() {
+    void multiGet_includes_null_marker() {
         when(valueOperations.multiGet(anyList()))
                 .thenReturn(Arrays.asList("value1", CacheConstants.NULL_MARKER));
 
         Map<String, Object> result = store.multiGet(List.of("key1", "nullKey"));
 
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         assertTrue(result.containsKey("key1"));
-        assertFalse(result.containsKey("nullKey"));
+        assertTrue(result.containsKey("nullKey"));
+        assertEquals(CacheConstants.NULL_MARKER, result.get("nullKey"));
     }
 
     @Test

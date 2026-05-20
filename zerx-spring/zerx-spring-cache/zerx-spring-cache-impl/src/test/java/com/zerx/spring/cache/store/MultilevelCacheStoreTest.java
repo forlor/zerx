@@ -83,15 +83,14 @@ class MultilevelCacheStoreTest {
     }
 
     @Test
-    void get_l1_null_marker_ignores_and_queries_l2() {
+    void get_l1_null_marker_returns_null_marker() {
         when(l1Cache.get("key1")).thenReturn(Optional.of(CacheConstants.NULL_MARKER));
-        when(l2Cache.get("key1")).thenReturn(Optional.of("l2-value"));
 
         Optional<Object> result = multilevelStore.get("key1");
 
         assertTrue(result.isPresent());
-        assertEquals("l2-value", result.get());
-        verify(l2Cache).get("key1");
+        assertEquals(CacheConstants.NULL_MARKER, result.get());
+        verify(l2Cache, never()).get(anyString());
     }
 
     @Test

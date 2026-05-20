@@ -1,14 +1,5 @@
 package com.zerx.spring.cache.store;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.Expiry;
-import com.zerx.spring.cache.CacheConstants;
-import com.zerx.spring.cache.CacheStore;
-import com.zerx.spring.cache.properties.ZerxCacheProperties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,6 +8,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.zerx.spring.cache.CacheConstants;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.properties.ZerxCacheProperties;
 
 /**
  * 基于 Caffeine 的本地缓存 CacheStore 实现。
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
  */
 public class CaffeineCacheStore implements CacheStore {
 
-    private static final Logger log = LoggerFactory.getLogger(CaffeineCacheStore.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CaffeineCacheStore.class);
 
     /**
      * 每条记录的可过期包装
@@ -41,7 +42,8 @@ public class CaffeineCacheStore implements CacheStore {
      * @param value         实际缓存值
      * @param expireAtNanos 基于 {@link System#nanoTime()} 的过期时间戳
      */
-    record ExpirableEntry(Object value, long expireAtNanos) {}
+    record ExpirableEntry(Object value, long expireAtNanos) {
+    }
 
     @SuppressWarnings("unchecked")
     private final Cache<String, Object> cache;
@@ -51,6 +53,11 @@ public class CaffeineCacheStore implements CacheStore {
 
     private final long accessExpiryNanos;
 
+    /**
+     * 构造函数。
+     *
+     * @param properties 缓存属性配置
+     */
     public CaffeineCacheStore(ZerxCacheProperties properties) {
         this.properties = properties;
         ZerxCacheProperties.CaffeineSpec spec = properties.getCaffeine();
@@ -118,7 +125,7 @@ public class CaffeineCacheStore implements CacheStore {
                 .collect(Collectors.toSet());
         if (!matchedKeys.isEmpty()) {
             cache.invalidateAll(matchedKeys);
-            log.debug("Evicted {} keys with prefix: {}", matchedKeys.size(), fullPrefix);
+            LOG.debug("Evicted {} keys with prefix: {}", matchedKeys.size(), fullPrefix);
         }
     }
 

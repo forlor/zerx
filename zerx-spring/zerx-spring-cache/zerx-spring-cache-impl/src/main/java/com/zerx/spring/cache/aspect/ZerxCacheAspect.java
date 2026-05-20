@@ -1,11 +1,9 @@
 package com.zerx.spring.cache.aspect;
 
-import com.zerx.spring.cache.CacheOps;
-import com.zerx.spring.cache.CacheStore;
-import com.zerx.spring.cache.annotation.ZerxCacheable;
-import com.zerx.spring.cache.annotation.ZerxCacheEvict;
-import com.zerx.spring.cache.annotation.ZerxCachePut;
-import com.zerx.spring.cache.properties.ZerxCacheProperties;
+import java.lang.reflect.Method;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -18,9 +16,12 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 
-import java.lang.reflect.Method;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+import com.zerx.spring.cache.CacheOps;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.annotation.ZerxCacheEvict;
+import com.zerx.spring.cache.annotation.ZerxCachePut;
+import com.zerx.spring.cache.annotation.ZerxCacheable;
+import com.zerx.spring.cache.properties.ZerxCacheProperties;
 
 /**
  * 声明式缓存注解 AOP 切面。
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 @Aspect
 public class ZerxCacheAspect {
 
-    private static final Logger log = LoggerFactory.getLogger(ZerxCacheAspect.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZerxCacheAspect.class);
 
     private final CacheOps cacheOps;
     private final CacheStore cacheStore;
@@ -87,16 +88,16 @@ public class ZerxCacheAspect {
 
             if (cacheEvict.prefixEvict()) {
                 cacheOps.evictByPrefix(cacheKey);
-                log.debug("Cache evicted by prefix: {}", cacheKey);
+                LOG.debug("Cache evicted by prefix: {}", cacheKey);
             } else {
                 cacheOps.evict(cacheKey);
-                log.debug("Cache evicted: {}", cacheKey);
+                LOG.debug("Cache evicted: {}", cacheKey);
             }
 
             return result;
         } catch (Throwable t) {
             // 方法执行失败不删除缓存，保留已有数据
-            log.debug("Method execution failed, cache eviction skipped: {}", joinPoint.getSignature());
+            LOG.debug("Method execution failed, cache eviction skipped: {}", joinPoint.getSignature());
             throw t;
         }
     }
@@ -115,12 +116,12 @@ public class ZerxCacheAspect {
 
         if (result != null) {
             cacheOps.set(cacheKey, result, ttl, cachePut.timeUnit());
-            log.debug("Cache put: {}", cacheKey);
+            LOG.debug("Cache put: {}", cacheKey);
         } else if (properties.getNullValueTtl().toMillis() > 0) {
             // 缓存空值（防穿透）
             cacheStore.set(cacheKey, com.zerx.spring.cache.CacheConstants.NULL_MARKER,
                     properties.getNullValueTtl());
-            log.debug("Cache put null marker: {}", cacheKey);
+            LOG.debug("Cache put null marker: {}", cacheKey);
         }
 
         return result;
@@ -178,7 +179,7 @@ public class ZerxCacheAspect {
             Object value = exp.getValue(context);
             return value != null ? value.toString() : "null";
         } catch (Exception e) {
-            log.warn("Failed to parse SpEL expression: '{}', fallback to raw string", expression, e);
+            LOG.warn("Failed to parse SpEL expression: '{}', fallback to raw string", expression, e);
             return expression;
         }
     }

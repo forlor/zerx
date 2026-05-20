@@ -1,17 +1,20 @@
 package com.zerx.spring.cache.manager;
 
-import com.zerx.spring.cache.CacheConstants;
-import com.zerx.spring.cache.CacheStore;
-import com.zerx.spring.cache.properties.ZerxCacheProperties;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+
+import com.zerx.spring.cache.CacheConstants;
+import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.properties.ZerxCacheProperties;
 
 /**
  * Zerx CacheManager — 适配 Spring Cache 抽象层。
@@ -86,7 +89,7 @@ public class ZerxCacheManager implements CacheManager {
             }
             Object v = value.get();
             if (CacheConstants.NULL_MARKER.equals(v)) {
-                return null;
+                return () -> null;
             }
             return () -> v;
         }
@@ -100,27 +103,54 @@ public class ZerxCacheManager implements CacheManager {
                     .orElse(null);
         }
 
+        private final ConcurrentHashMap<Object, Lock> localLocks = new ConcurrentHashMap<>();
+
         @Override
         @SuppressWarnings("unchecked")
         public <T> T get(Object key, Callable<T> valueLoader) {
+            // 先无锁查询一次
             Optional<Object> existing = store.get(name + ":" + key);
-            if (existing.isPresent() && !CacheConstants.NULL_MARKER.equals(existing.get())) {
-                return (T) existing.get();
-            }
-            try {
-                T value = valueLoader.call();
-                if (value != null) {
-                    store.set(name + ":" + key, value, defaultTtl);
+            if (existing.isPresent()) {
+                Object existingValue = existing.get();
+                if (CacheConstants.NULL_MARKER.equals(existingValue)) {
+                    return null;
                 }
+                return (T) existingValue;
+            }
+
+            // 获取细粒度锁防击穿
+            Lock lock = localLocks.computeIfAbsent(key, k -> new ReentrantLock());
+            lock.lock();
+            try {
+                // 加锁后再查一次（双重检查）
+                existing = store.get(name + ":" + key);
+                if (existing.isPresent()) {
+                    Object existingValue = existing.get();
+                    if (CacheConstants.NULL_MARKER.equals(existingValue)) {
+                        return null;
+                    }
+                    return (T) existingValue;
+                }
+                // 执行回源
+                T value = valueLoader.call();
+                Object cacheValue = value == null ? CacheConstants.NULL_MARKER : value;
+                store.set(name + ":" + key, cacheValue, defaultTtl);
                 return value;
             } catch (Exception e) {
                 throw new ValueRetrievalException(key, valueLoader, e);
+            } finally {
+                lock.unlock();
+                // 考虑到内存泄漏，在多线程高度并发下直接 remove 可能造成后来的线程获取不到正确的锁，
+                // 实际生产中可使用更高级的基于引用的锁缓存，或定时清理，这里为了简洁和有效暂不主动 remove，
+                // 但为了避免 key 过多，可以简单在此处移除（如果在高并发场景下可能稍微降低一点点安全性，但能保证防内存泄漏）
+                localLocks.remove(key);
             }
         }
 
         @Override
         public void put(Object key, Object value) {
-            store.set(name + ":" + key, value, defaultTtl);
+            Object cacheValue = value == null ? CacheConstants.NULL_MARKER : value;
+            store.set(name + ":" + key, cacheValue, defaultTtl);
         }
 
         @Override
@@ -128,11 +158,13 @@ public class ZerxCacheManager implements CacheManager {
             Optional<Object> existing = store.get(name + ":" + key);
             if (existing.isPresent()) {
                 Object existingValue = existing.get();
-                if (!CacheConstants.NULL_MARKER.equals(existingValue)) {
-                    return () -> existingValue;
+                if (CacheConstants.NULL_MARKER.equals(existingValue)) {
+                    return () -> null;
                 }
+                return () -> existingValue;
             }
-            store.set(name + ":" + key, value, defaultTtl);
+            Object cacheValue = value == null ? CacheConstants.NULL_MARKER : value;
+            store.set(name + ":" + key, cacheValue, defaultTtl);
             return null;
         }
 

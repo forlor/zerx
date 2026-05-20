@@ -1,13 +1,14 @@
 package com.zerx.spring.cache.config;
 
-import com.zerx.spring.cache.CacheConstants;
-import com.zerx.spring.cache.CacheStore;
+import java.nio.charset.StandardCharsets;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 
-import java.nio.charset.StandardCharsets;
+import com.zerx.spring.cache.CacheConstants;
+import com.zerx.spring.cache.CacheStore;
 
 /**
  * Redis Pub/Sub 缓存失效监听器。
@@ -21,7 +22,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class CacheInvalidationListener implements MessageListener {
 
-    private static final Logger log = LoggerFactory.getLogger(CacheInvalidationListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CacheInvalidationListener.class);
 
     private final CacheStore l1Cache;
 
@@ -45,14 +46,14 @@ public class CacheInvalidationListener implements MessageListener {
 
                 if ("evict_prefix".equals(body)) {
                     l1Cache.evictByPrefix(key);
-                    log.debug("L1 cache invalidated via Pub/Sub (prefix): key={}", key);
+                    LOG.debug("L1 cache invalidated via Pub/Sub (prefix): key={}", key);
                 } else {
                     l1Cache.evict(key);
-                    log.debug("L1 cache invalidated via Pub/Sub: key={}", key);
+                    LOG.debug("L1 cache invalidated via Pub/Sub: key={}", key);
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to process cache invalidation message", e);
+            LOG.warn("Failed to process cache invalidation message", e);
         }
     }
 
@@ -68,7 +69,7 @@ public class CacheInvalidationListener implements MessageListener {
         if (channel.startsWith(prefix)) {
             return channel.substring(prefix.length());
         }
-        log.warn("Unexpected channel name format: {}", channel);
+        LOG.warn("Unexpected channel name format: {}", channel);
         return null;
     }
 }
