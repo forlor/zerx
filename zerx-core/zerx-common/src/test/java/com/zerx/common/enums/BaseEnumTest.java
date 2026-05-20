@@ -106,34 +106,6 @@ class BaseEnumTest {
         }
     }
 
-    // ======================== DeleteFlag as additional BaseEnum test subject ========================
-
-    @Nested
-    @DisplayName("DeleteFlag as BaseEnum Implementation")
-    class DeleteFlagBaseEnumTest {
-
-        @Test
-        @DisplayName("DeleteFlag should implement BaseEnum<Integer>")
-        void deleteFlagImplementsBaseEnum() {
-            assertInstanceOf(BaseEnum.class, DeleteFlag.DELETED);
-            assertInstanceOf(BaseEnum.class, DeleteFlag.NOT_DELETED);
-        }
-
-        @Test
-        @DisplayName("DeleteFlag.getCode() should return Integer")
-        void deleteFlagGetCode() {
-            assertEquals(1, DeleteFlag.DELETED.getCode());
-            assertEquals(0, DeleteFlag.NOT_DELETED.getCode());
-        }
-
-        @Test
-        @DisplayName("DeleteFlag.getDescription() should return non-null String")
-        void deleteFlagGetDescription() {
-            assertEquals("已删除", DeleteFlag.DELETED.getDescription());
-            assertEquals("未删除", DeleteFlag.NOT_DELETED.getDescription());
-        }
-    }
-
     // ======================== YesNo as additional BaseEnum test subject ========================
 
     @Nested

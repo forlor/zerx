@@ -10,10 +10,13 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -379,6 +382,34 @@ class ZerxTokenServiceTest {
         @Override
         public CacheStore getStore() {
             return null;
+        }
+
+        @Override
+        public <T> Map<String, T> getAll(Collection<String> keys, Function<Collection<String>, Map<String, T>> loader, long ttl, TimeUnit unit) {
+            Map<String, T> result = new HashMap<>();
+            List<String> misses = new ArrayList<>();
+
+            for (String key : keys) {
+                var entry = store.get(key);
+                if (entry != null && !entry.isExpired()) {
+                    @SuppressWarnings("unchecked")
+                    T value = (T) entry.value;
+                    result.put(key, value);
+                } else {
+                    store.remove(key);
+                    misses.add(key);
+                }
+            }
+
+            if (!misses.isEmpty()) {
+                Map<String, T> loaded = loader.apply(misses);
+                for (var e : loaded.entrySet()) {
+                    set(e.getKey(), e.getValue(), ttl, unit);
+                    result.put(e.getKey(), e.getValue());
+                }
+            }
+
+            return result;
         }
 
         private record CacheEntry(Object value, long expiresAt) {

@@ -1,5 +1,6 @@
 package com.zerx.spring.cache.autoconfigure;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -17,6 +18,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
+import com.zerx.spring.cache.BloomFilter;
 import com.zerx.spring.cache.CacheOps;
 import com.zerx.spring.cache.CacheStore;
 import com.zerx.spring.cache.aspect.ZerxCacheAspect;
@@ -179,8 +181,11 @@ public class ZerxCacheAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(CacheOps.class)
-    public CacheOps cacheOps(CacheStore cacheStore, ZerxCacheProperties properties) {
-        return new CacheOpsImpl(cacheStore, properties.getNullValueTtl(), properties.getLockTimeout());
+    public CacheOps cacheOps(CacheStore cacheStore, ZerxCacheProperties properties,
+                             ObjectProvider<BloomFilter<String>> bloomFilterProvider) {
+        BloomFilter<String> bloomFilter = bloomFilterProvider.getIfAvailable();
+        return new CacheOpsImpl(cacheStore, properties.getNullValueTtl(), properties.getLockTimeout(),
+                bloomFilter, null);
     }
 
     /**

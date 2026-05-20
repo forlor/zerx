@@ -15,7 +15,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -160,6 +163,11 @@ class ZerxSecurityConfigurationTest {
         @Override
         public CacheStore getStore() {
             return null;
+        }
+
+        @Override
+        public <T> Map<String, T> getAll(Collection<String> keys, Function<Collection<String>, Map<String, T>> loader, long ttl, java.util.concurrent.TimeUnit unit) {
+            return Map.of();
         }
     }
 }

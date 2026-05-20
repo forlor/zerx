@@ -86,6 +86,33 @@ class CacheOpsTest {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
+        public <T> Map<String, T> getAll(Collection<String> keys,
+                                         java.util.function.Function<Collection<String>, Map<String, T>> loader,
+                                         long ttl, TimeUnit unit) {
+            Map<String, T> result = new HashMap<>();
+            List<String> missingKeys = new ArrayList<>();
+            for (String key : keys) {
+                Object cached = store.get(key);
+                if (cached != null && cached != CacheConstants.NULL_MARKER) {
+                    result.put(key, (T) cached);
+                } else {
+                    missingKeys.add(key);
+                }
+            }
+            if (!missingKeys.isEmpty()) {
+                Map<String, T> loaded = loader.apply(missingKeys);
+                if (loaded != null) {
+                    loaded.forEach((k, v) -> {
+                        store.put(k, v != null ? v : CacheConstants.NULL_MARKER);
+                        if (v != null) result.put(k, v);
+                    });
+                }
+            }
+            return result;
+        }
+
+        @Override
         public CacheStore getStore() {
             // CacheOpsTest 内部不依赖 CacheStoreTest 的实现，
             // 返回一个最小 CacheStore 适配

@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.zerx.spring.cache.BloomFilter;
 import com.zerx.spring.cache.CacheConstants;
 import com.zerx.spring.cache.CacheException;
 import com.zerx.spring.cache.CacheOps;
@@ -26,7 +27,7 @@ import com.zerx.spring.cache.CacheStore;
  * 在底层 KV 存储之上提供：
  * <ul>
  *     <li>Cache-Aside 加载：miss 时执行 loader 并回填</li>
- *     <li>防穿透（anti-penetration）：loader 返回 null 时缓存 NULL_MARKER</li>
+ *     <li>防穿透（anti-penetration）：布隆过滤器前置判空 + loader 返回 null 时缓存 NULL_MARKER</li>
  *     <li>防击穿（anti-stampede）：分段锁互斥，避免 per-key 锁内存泄漏</li>
  *     <li>防雪崩（anti-avalanche）：由底层 CacheStore 的 TTL 抖动保障</li>
  *     <li>Micrometer 指标：cache.hits / cache.misses / cache.loads / cache.evictions / cache.load.duration</li>
@@ -48,6 +49,7 @@ public class CacheOpsImpl implements CacheOps {
     private final CacheStore store;
     private final Duration nullValueTtl;
     private final Duration lockTimeout;
+    private final BloomFilter<String> bloomFilter;
     private final MeterRegistry meterRegistry;
 
     // Micrometer 计数器（null 时表示未启用）
@@ -68,7 +70,7 @@ public class CacheOpsImpl implements CacheOps {
      * @param lockTimeout  防击穿互斥锁等待超时（null 表示无限等待）
      */
     public CacheOpsImpl(CacheStore store, Duration nullValueTtl, Duration lockTimeout) {
-        this(store, nullValueTtl, lockTimeout, getGlobalRegistry());
+        this(store, nullValueTtl, lockTimeout, null, getGlobalRegistry());
     }
 
     /**
@@ -79,9 +81,22 @@ public class CacheOpsImpl implements CacheOps {
      */
     public CacheOpsImpl(CacheStore store, Duration nullValueTtl, Duration lockTimeout,
                         MeterRegistry meterRegistry) {
+        this(store, nullValueTtl, lockTimeout, null, meterRegistry);
+    }
+
+    /**
+     * @param store        底层缓存存储
+     * @param nullValueTtl 空值缓存 TTL（0 或负值表示不缓存空值）
+     * @param lockTimeout  防击穿互斥锁等待超时（null 表示无限等待）
+     * @param bloomFilter  布隆过滤器（可选，用于前置判空防穿透）
+     * @param meterRegistry Micrometer 注册表（null 时不记录指标）
+     */
+    public CacheOpsImpl(CacheStore store, Duration nullValueTtl, Duration lockTimeout,
+                        BloomFilter<String> bloomFilter, MeterRegistry meterRegistry) {
         this.store = store;
         this.nullValueTtl = nullValueTtl;
         this.lockTimeout = lockTimeout;
+        this.bloomFilter = bloomFilter;
         this.meterRegistry = meterRegistry;
 
         if (meterRegistry != null) {
@@ -126,6 +141,13 @@ public class CacheOpsImpl implements CacheOps {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T get(String key, Supplier<T> loader, long ttl, TimeUnit timeUnit) {
+        // 布隆过滤器前置判空（防穿透第一道防线）
+        if (bloomFilter != null && !bloomFilter.mightContain(key)) {
+            LOG.debug("Bloom filter rejected (anti-penetration): {}", key);
+            if (misses != null) misses.increment();
+            return null;
+        }
+
         // 快速路径：无锁查询
         Optional<Object> cached = store.get(key);
         if (cached.isPresent()) {
