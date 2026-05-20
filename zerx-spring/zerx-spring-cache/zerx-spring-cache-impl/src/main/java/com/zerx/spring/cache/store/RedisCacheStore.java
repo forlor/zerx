@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -200,12 +201,10 @@ public class RedisCacheStore implements CacheStore {
     // ======================== 内部工具方法 ========================
 
     long withJitter(long ttlMillis) {
-        double jitter = CacheConstants.JITTER_MIN + Math.random() * (CacheConstants.JITTER_MAX - CacheConstants.JITTER_MIN);
-        return Math.max(1, (long) (ttlMillis * jitter));
+        return CacheStoreSupport.withJitter(ttlMillis);
     }
 
     String withPrefix(String key) {
-        String prefix = properties.getKeyPrefix();
-        return key.startsWith(prefix) ? key : prefix + key;
+        return CacheStoreSupport.withPrefix(key, properties);
     }
 }

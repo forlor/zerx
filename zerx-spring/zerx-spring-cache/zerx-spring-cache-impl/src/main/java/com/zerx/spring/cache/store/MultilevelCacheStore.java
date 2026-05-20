@@ -201,7 +201,6 @@ public class MultilevelCacheStore implements CacheStore {
     }
 
     String withPrefix(String key) {
-        String prefix = properties.getKeyPrefix();
-        return key.startsWith(prefix) ? key : prefix + key;
+        return CacheStoreSupport.withPrefix(key, properties);
     }
 }

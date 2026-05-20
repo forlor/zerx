@@ -1,6 +1,6 @@
 package com.zerx.spring.web.context;
 
-import java.util.UUID;
+import com.zerx.common.util.UuidUtil;
 
 /**
  * 请求上下文 — 基于 ThreadLocal 的请求级别信息载体
@@ -67,7 +67,7 @@ public final class RequestContext {
     public static RequestContext init() {
         clear();
         var ctx = new RequestContext();
-        ctx.requestId = UUID.randomUUID().toString();
+        ctx.requestId = UuidUtil.uuidv7Hex();
         HOLDER.set(ctx);
         return ctx;
     }

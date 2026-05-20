@@ -1,8 +1,11 @@
 package com.zerx.spring.cache;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -113,12 +116,24 @@ public interface CacheOps {
 
     /**
      * 获取底层 CacheStore 实例。
-     * <p>
-     * 用于需要直接操作底层 KV 存储的高级场景（如批量操作、条件缓存等）。
-     * AOP 切面和 CacheManager 也通过此方法访问底层存储。
-     * </p>
      *
      * @return 底层缓存存储实例
      */
     CacheStore getStore();
+
+    /**
+     * 批量获取缓存值，miss 的 key 批量调用 loader 并回填。
+     * <p>
+     * 执行流程：multiGet 查缓存 → 收集 miss 的 key → 批量调用 loader → multiSet 回填 → 合并返回。
+     * </p>
+     *
+     * @param keys   需要获取的逻辑键集合
+     * @param loader 批量数据加载函数（传入 miss 的 key 集合，返回 key-value 映射）
+     * @param ttl    缓存时间
+     * @param unit   时间单位
+     * @param <T>    值类型
+     * @return 所有 key 对应的缓存值映射（包含缓存命中和 loader 加载的）
+     */
+    <T> Map<String, T> getAll(Collection<String> keys, Function<Collection<String>, Map<String, T>> loader,
+                              long ttl, TimeUnit unit);
 }

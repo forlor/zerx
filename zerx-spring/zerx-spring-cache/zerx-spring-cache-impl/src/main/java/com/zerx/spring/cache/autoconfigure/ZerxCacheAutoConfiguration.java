@@ -206,6 +206,19 @@ public class ZerxCacheAutoConfiguration {
         return new ZerxCacheAspect(cacheOps, cacheStore, properties);
     }
 
+    /**
+     * 缓存预热触发器 — 收集所有 CacheWarmer Bean 并在应用启动后执行。
+     * <p>
+     * 仅当存在至少一个 {@link com.zerx.spring.cache.warmer.CacheWarmer} Bean 时注册。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnBean(com.zerx.spring.cache.warmer.CacheWarmer.class)
+    public com.zerx.spring.cache.warmer.CacheWarmUpRunner cacheWarmUpRunner(
+            java.util.List<com.zerx.spring.cache.warmer.CacheWarmer> warmers) {
+        return new com.zerx.spring.cache.warmer.CacheWarmUpRunner(warmers);
+    }
+
     // ======================== Micrometer 指标绑定 ========================
 
     /**

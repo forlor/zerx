@@ -1,5 +1,6 @@
 package com.zerx.spring.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.model.Result;
 import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
 import com.zerx.spring.web.annotation.ZerxResponseResult;
@@ -35,7 +36,7 @@ class ZerxResponseBodyAdviceTest {
     void setUp() throws Exception {
         properties = new ZerxWebProperties();
         properties.setResponseWrapEnabled(true);
-        advice = new ZerxResponseBodyAdvice(properties);
+        advice = new ZerxResponseBodyAdvice(properties, new ObjectMapper());
 
         request = mock(ServerHttpRequest.class);
         response = mock(ServerHttpResponse.class);

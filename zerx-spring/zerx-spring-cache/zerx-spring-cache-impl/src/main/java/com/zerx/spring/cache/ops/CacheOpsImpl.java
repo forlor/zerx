@@ -1,10 +1,11 @@
 package com.zerx.spring.cache.ops;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.micrometer.core.instrument.Counter;
@@ -26,7 +27,7 @@ import com.zerx.spring.cache.CacheStore;
  * <ul>
  *     <li>Cache-Aside 加载：miss 时执行 loader 并回填</li>
  *     <li>防穿透（anti-penetration）：loader 返回 null 时缓存 NULL_MARKER</li>
- *     <li>防击穿（anti-stampede）：per-key ReentrantLock 互斥锁</li>
+ *     <li>防击穿（anti-stampede）：分段锁互斥，避免 per-key 锁内存泄漏</li>
  *     <li>防雪崩（anti-avalanche）：由底层 CacheStore 的 TTL 抖动保障</li>
  *     <li>Micrometer 指标：cache.hits / cache.misses / cache.loads / cache.evictions / cache.load.duration</li>
  * </ul>
@@ -57,13 +58,9 @@ public class CacheOpsImpl implements CacheOps {
     private final Timer loadTimer;
 
     /**
-     * per-key 互斥锁映射（防击穿）。
-     * <p>
-     * 使用 {@link ReentrantLock} 替代 synchronized，支持可中断等待。
-     * 锁在双重检查后移除，避免内存泄漏。
-     * </p>
+     * 分段锁（防击穿），固定 64 段，避免 per-key 锁的内存泄漏。
      */
-    private final ConcurrentHashMap<String, ReentrantLock> lockMap = new ConcurrentHashMap<>();
+    private final StripedLock stripedLock = new StripedLock();
 
     /**
      * @param store        底层缓存存储
@@ -142,14 +139,13 @@ public class CacheOpsImpl implements CacheOps {
             return (T) cached.get();
         }
 
-        // 慢路径：获取 per-key 互斥锁（防击穿）
-        ReentrantLock lock = lockMap.computeIfAbsent(key, k -> new ReentrantLock());
+        // 慢路径：获取分段锁（防击穿）
+        var lock = stripedLock.get(key);
         boolean acquired;
         try {
             if (lockTimeout != null && lockTimeout.toMillis() > 0) {
                 acquired = lock.tryLock(lockTimeout.toMillis(), TimeUnit.MILLISECONDS);
                 if (!acquired) {
-                    lockMap.remove(key, lock);
                     throw new CacheException(
                             CacheException.CACHE_LOCK_TIMEOUT,
                             "Cache lock acquisition timed out for key: " + key
@@ -161,7 +157,6 @@ public class CacheOpsImpl implements CacheOps {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            lockMap.remove(key, lock);
             throw new CacheException(
                     CacheException.CACHE_LOCK_TIMEOUT,
                     "Cache lock interrupted for key: " + key, e);
@@ -203,7 +198,6 @@ public class CacheOpsImpl implements CacheOps {
             return value;
         } finally {
             lock.unlock();
-            lockMap.remove(key, lock);
         }
     }
 
@@ -248,5 +242,53 @@ public class CacheOpsImpl implements CacheOps {
     @Override
     public boolean hasKey(String key) {
         return store.hasKey(key);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> Map<String, T> getAll(Collection<String> keys,
+                                     Function<Collection<String>, Map<String, T>> loader,
+                                     long ttl, TimeUnit unit) {
+        if (keys == null || keys.isEmpty()) {
+            return Map.of();
+        }
+
+        Duration ttlDuration = Duration.ofMillis(unit.toMillis(ttl));
+
+        // 1. 批量查缓存
+        Map<String, Object> cached = store.multiGet(keys);
+        Map<String, T> result = new java.util.HashMap<>(keys.size());
+
+        for (Map.Entry<String, Object> entry : cached.entrySet()) {
+            if (!CacheConstants.NULL_MARKER.equals(entry.getValue())) {
+                result.put(entry.getKey(), (T) entry.getValue());
+            }
+        }
+
+        // 2. 收集 miss 的 key
+        java.util.Set<String> missingKeys = new java.util.LinkedHashSet<>(keys);
+        missingKeys.removeAll(cached.keySet());
+
+        if (missingKeys.isEmpty()) {
+            return result;
+        }
+
+        // 3. 批量加载 miss 的 key
+        Map<String, T> loaded = loader.apply(missingKeys);
+        if (loaded != null && !loaded.isEmpty()) {
+            // 4. 回填缓存
+            Map<String, Object> toCache = new java.util.HashMap<>(loaded.size());
+            loaded.forEach((k, v) -> {
+                if (v != null) {
+                    toCache.put(k, v);
+                }
+            });
+            if (!toCache.isEmpty()) {
+                store.multiSet(toCache, ttlDuration);
+            }
+            result.putAll(loaded);
+        }
+
+        return result;
     }
 }

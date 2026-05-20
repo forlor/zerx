@@ -3,6 +3,10 @@ package com.zerx.spring.security.autoconfigure;
 import com.zerx.spring.cache.CacheOps;
 import com.zerx.spring.security.config.ZerxSecurityConfiguration;
 import com.zerx.spring.security.properties.ZerxSecurityProperties;
+import com.zerx.spring.security.service.DefaultLoginAttemptService;
+import com.zerx.spring.security.service.DefaultPasswordValidator;
+import com.zerx.spring.security.service.ZerxLoginAttemptService;
+import com.zerx.spring.security.service.ZerxPasswordValidator;
 import com.zerx.spring.security.token.ZerxHs256TokenService;
 import com.zerx.spring.security.token.ZerxRs256TokenService;
 import com.zerx.spring.security.token.ZerxTokenService;
@@ -13,7 +17,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -36,7 +39,8 @@ import org.springframework.security.web.SecurityFilterChain;
  *
  * <h3>自动配置行为：</h3>
  * <ul>
- *   <li>将 SecurityContext 策略设置为 {@code INHERITABLE_THREAD_LOCAL}，确保 {@code @Async} 方法中不丢失认证信息</li>
+ *   <li>默认使用 Spring Security 的 {@code MODE_THREADLOCAL} 策略（安全、无上下文泄漏风险）</li>
+ *   <li>如需在 {@code @Async} 方法中访问认证信息，请配置 {@code DelegatingSecurityContextExecutor}</li>
  * </ul>
  *
  * @author zerx
@@ -72,10 +76,27 @@ public class ZerxSecurityAutoConfiguration {
         };
     }
 
-    static {
-        // 将 SecurityContext 策略设置为 INHERITABLE_THREAD_LOCAL
-        // 确保 @Async 异步方法和子线程能够访问主线程的 SecurityContext
-        // Spring Security 默认使用 ThreadLocal，在异步场景下会丢失认证信息
-        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
+    /**
+     * 注册默认登录失败锁定服务（基于内存，5 次锁定 30 分钟）。
+     * <p>
+     * 业务方可提供自定义 {@link ZerxLoginAttemptService} Bean 覆盖此默认实现。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(ZerxLoginAttemptService.class)
+    public ZerxLoginAttemptService zerxLoginAttemptService() {
+        return new DefaultLoginAttemptService();
+    }
+
+    /**
+     * 注册默认密码强度校验器（OWASP 基线：8 位 + 大小写 + 数字）。
+     * <p>
+     * 业务方可提供自定义 {@link ZerxPasswordValidator} Bean 覆盖此默认实现。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnMissingBean(ZerxPasswordValidator.class)
+    public ZerxPasswordValidator zerxPasswordValidator() {
+        return new DefaultPasswordValidator();
     }
 }

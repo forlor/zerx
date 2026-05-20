@@ -10,6 +10,7 @@ import org.springframework.util.ClassUtils;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -36,11 +37,16 @@ public class SlowSqlInterceptor implements BeanPostProcessor {
     private static final Logger log = LoggerFactory.getLogger(SlowSqlInterceptor.class);
 
     /** 敏感参数关键词（用于自动脱敏） */
-    private static final Set<String> SENSITIVE_KEYWORDS = Set.of(
+    private static final List<String> SENSITIVE_KEYWORDS = List.of(
             "password", "passwd", "pwd",
             "secret", "token", "credential",
             "api_key", "apikey", "access_key"
     );
+
+    /** 预编译的敏感参数匹配正则 */
+    private static final List<Pattern> SENSITIVE_PATTERNS = SENSITIVE_KEYWORDS.stream()
+            .map(keyword -> Pattern.compile("(?i)\\b" + Pattern.quote(keyword) + "\\b\\s*=\\s*'[^']*'"))
+            .toList();
 
     /** 数据库字符串字面量上下文匹配的正则表达式 */
     private static final Pattern STRING_LITERAL_PATTERN = Pattern.compile("'[^']*'");
@@ -210,11 +216,10 @@ public class SlowSqlInterceptor implements BeanPostProcessor {
      */
     private String maskSensitiveData(String sql) {
         String masked = sql;
-        for (String keyword : SENSITIVE_KEYWORDS) {
-            // 匹配 password = 'xxx' 或 password = :password 等模式
-            masked = masked.replaceAll(
-                    "(?i)\\b" + Pattern.quote(keyword) + "\\b\\s*=\\s*'[^']*'",
-                    keyword + " = '***MASKED***'");
+        int i = 0;
+        for (Pattern pattern : SENSITIVE_PATTERNS) {
+            masked = pattern.matcher(masked).replaceAll(SENSITIVE_KEYWORDS.get(i) + " = '***MASKED***'");
+            i++;
         }
         return masked;
     }

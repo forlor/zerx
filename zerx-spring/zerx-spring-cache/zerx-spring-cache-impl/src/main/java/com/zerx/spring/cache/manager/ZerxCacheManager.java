@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.springframework.cache.Cache;
@@ -14,6 +13,7 @@ import org.springframework.cache.CacheManager;
 
 import com.zerx.spring.cache.CacheConstants;
 import com.zerx.spring.cache.CacheStore;
+import com.zerx.spring.cache.ops.StripedLock;
 import com.zerx.spring.cache.properties.ZerxCacheProperties;
 
 /**
@@ -65,6 +65,8 @@ public class ZerxCacheManager implements CacheManager {
         private final CacheStore store;
         private final Duration defaultTtl;
 
+        private final StripedLock stripedLock = new StripedLock();
+
         ZerxCacheAdapter(String name, CacheStore store, Duration defaultTtl) {
             this.name = name;
             this.store = store;
@@ -103,8 +105,6 @@ public class ZerxCacheManager implements CacheManager {
                     .orElse(null);
         }
 
-        private final ConcurrentHashMap<Object, Lock> localLocks = new ConcurrentHashMap<>();
-
         @Override
         @SuppressWarnings("unchecked")
         public <T> T get(Object key, Callable<T> valueLoader) {
@@ -118,8 +118,8 @@ public class ZerxCacheManager implements CacheManager {
                 return (T) existingValue;
             }
 
-            // 获取细粒度锁防击穿
-            Lock lock = localLocks.computeIfAbsent(key, k -> new ReentrantLock());
+            // 获取分段锁防击穿
+            ReentrantLock lock = stripedLock.get(String.valueOf(key));
             lock.lock();
             try {
                 // 加锁后再查一次（双重检查）
@@ -140,10 +140,6 @@ public class ZerxCacheManager implements CacheManager {
                 throw new ValueRetrievalException(key, valueLoader, e);
             } finally {
                 lock.unlock();
-                // 考虑到内存泄漏，在多线程高度并发下直接 remove 可能造成后来的线程获取不到正确的锁，
-                // 实际生产中可使用更高级的基于引用的锁缓存，或定时清理，这里为了简洁和有效暂不主动 remove，
-                // 但为了避免 key 过多，可以简单在此处移除（如果在高并发场景下可能稍微降低一点点安全性，但能保证防内存泄漏）
-                localLocks.remove(key);
             }
         }
 
@@ -155,17 +151,24 @@ public class ZerxCacheManager implements CacheManager {
 
         @Override
         public ValueWrapper putIfAbsent(Object key, Object value) {
-            Optional<Object> existing = store.get(name + ":" + key);
-            if (existing.isPresent()) {
-                Object existingValue = existing.get();
-                if (CacheConstants.NULL_MARKER.equals(existingValue)) {
-                    return () -> null;
+            String cacheKey = name + ":" + key;
+            ReentrantLock lock = stripedLock.get(String.valueOf(key));
+            lock.lock();
+            try {
+                Optional<Object> existing = store.get(cacheKey);
+                if (existing.isPresent()) {
+                    Object existingValue = existing.get();
+                    if (CacheConstants.NULL_MARKER.equals(existingValue)) {
+                        return () -> null;
+                    }
+                    return () -> existingValue;
                 }
-                return () -> existingValue;
+                Object cacheValue = value == null ? CacheConstants.NULL_MARKER : value;
+                store.set(cacheKey, cacheValue, defaultTtl);
+                return null;
+            } finally {
+                lock.unlock();
             }
-            Object cacheValue = value == null ? CacheConstants.NULL_MARKER : value;
-            store.set(name + ":" + key, cacheValue, defaultTtl);
-            return null;
         }
 
         @Override

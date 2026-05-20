@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerx.common.logging.OpLogContextExtractor;
 import com.zerx.spring.web.advise.GlobalExceptionHandler;
 import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
@@ -53,8 +54,9 @@ public class ZerxWebAutoConfiguration {
      * @return ZerxResponseBodyAdvice 实例
      */
     @Bean
-    public ZerxResponseBodyAdvice zerxResponseBodyAdvice(ZerxWebProperties properties) {
-        return new ZerxResponseBodyAdvice(properties);
+    public ZerxResponseBodyAdvice zerxResponseBodyAdvice(ZerxWebProperties properties,
+                                                          ObjectMapper objectMapper) {
+        return new ZerxResponseBodyAdvice(properties, objectMapper);
     }
 
     /**

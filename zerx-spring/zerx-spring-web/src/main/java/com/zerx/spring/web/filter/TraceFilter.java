@@ -1,7 +1,8 @@
 package com.zerx.spring.web.filter;
 
 import java.io.IOException;
-import java.util.UUID;
+
+import com.zerx.common.util.UuidUtil;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -94,6 +95,6 @@ public class TraceFilter extends OncePerRequestFilter {
             return traceId.trim();
         }
         // 生成短 UUID（32 位十六进制字符串）
-        return UUID.randomUUID().toString().replace("-", "");
+        return UuidUtil.uuidv7Hex();
     }
 }

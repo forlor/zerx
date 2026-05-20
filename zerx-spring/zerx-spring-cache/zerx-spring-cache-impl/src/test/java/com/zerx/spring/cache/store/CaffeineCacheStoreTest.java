@@ -122,14 +122,14 @@ class CaffeineCacheStoreTest {
     }
 
     @Test
-    void multiGet_excludes_null_marker() {
+    void multiGet_includes_null_marker() {
         store.set("key1", "value1", Duration.ofMinutes(10));
         store.set("nullKey", CacheConstants.NULL_MARKER, Duration.ofMinutes(5));
 
         Map<String, Object> result = store.multiGet(Set.of("key1", "nullKey"));
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         assertEquals("value1", result.get("key1"));
-        assertFalse(result.containsKey("nullKey"));
+        assertEquals(CacheConstants.NULL_MARKER, result.get("nullKey"));
     }
 
     @Test

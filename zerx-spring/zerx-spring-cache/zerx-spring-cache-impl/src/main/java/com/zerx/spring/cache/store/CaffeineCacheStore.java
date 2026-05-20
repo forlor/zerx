@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -136,11 +137,20 @@ public class CaffeineCacheStore implements CacheStore {
 
     @Override
     public Map<String, Object> multiGet(Collection<String> keys) {
-        Map<String, Object> result = new HashMap<>(keys.size());
+        Map<String, String> prefixedToLogical = new HashMap<>(keys.size());
         for (String key : keys) {
-            get(key).filter(v -> !CacheConstants.NULL_MARKER.equals(v))
-                    .ifPresent(v -> result.put(key, v));
+            prefixedToLogical.put(withPrefix(key), key);
         }
+        Map<String, Object> raw = cache.getAllPresent(prefixedToLogical.keySet());
+        Map<String, Object> result = new HashMap<>(raw.size());
+        raw.forEach((fullKey, value) -> {
+            if (value instanceof ExpirableEntry entry) {
+                String logicalKey = prefixedToLogical.get(fullKey);
+                if (logicalKey != null) {
+                    result.put(logicalKey, entry.value());
+                }
+            }
+        });
         return result;
     }
 
@@ -171,12 +181,10 @@ public class CaffeineCacheStore implements CacheStore {
      * 给 TTL 添加随机抖动（防雪崩）。
      */
     long withJitter(long ttlNanos) {
-        double jitter = CacheConstants.JITTER_MIN + Math.random() * (CacheConstants.JITTER_MAX - CacheConstants.JITTER_MIN);
-        return Math.max(1, (long) (ttlNanos * jitter));
+        return CacheStoreSupport.withJitter(ttlNanos);
     }
 
     String withPrefix(String key) {
-        String prefix = properties.getKeyPrefix();
-        return key.startsWith(prefix) ? key : prefix + key;
+        return CacheStoreSupport.withPrefix(key, properties);
     }
 }

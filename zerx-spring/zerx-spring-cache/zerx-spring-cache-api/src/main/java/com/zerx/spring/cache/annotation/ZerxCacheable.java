@@ -67,4 +67,28 @@ public @interface ZerxCacheable {
      * </p>
      */
     boolean nullCache() default true;
+
+    /**
+     * 缓存前置条件 SpEL 表达式。
+     * <p>
+     * 表达式求值为 {@code false} 时不走缓存，直接执行方法。
+     * 可引用方法参数（{@code #id}、{@code #p0}）。
+     * 为空字符串时视为无条件限制。
+     * </p>
+     *
+     * @example {@code condition = "#id > 0"}
+     */
+    String condition() default "";
+
+    /**
+     * 缓存后置排除 SpEL 表达式。
+     * <p>
+     * 方法执行完成后求值，可引用方法参数和返回值（{@code #result}）。
+     * 表达式求值为 {@code true} 时，不将结果写入缓存。
+     * 为空字符串时表示不排除。
+     * </p>
+     *
+     * @example {@code unless = "#result == null"} 或 {@code unless = "#result.size() == 0"}
+     */
+    String unless() default "";
 }

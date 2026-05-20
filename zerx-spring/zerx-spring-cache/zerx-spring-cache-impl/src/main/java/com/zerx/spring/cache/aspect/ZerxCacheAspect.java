@@ -2,6 +2,7 @@ package com.zerx.spring.cache.aspect;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -43,6 +44,9 @@ public class ZerxCacheAspect {
     private final SpelExpressionParser parser = new SpelExpressionParser();
     private final DefaultParameterNameDiscoverer nameDiscoverer = new DefaultParameterNameDiscoverer();
 
+    /** SpEL 表达式缓存，避免每次调用都重新解析 */
+    private final ConcurrentHashMap<String, Expression> expressionCache = new ConcurrentHashMap<>();
+
     public ZerxCacheAspect(CacheOps cacheOps, CacheStore cacheStore,
                            ZerxCacheProperties properties) {
         this.cacheOps = cacheOps;
@@ -58,11 +62,16 @@ public class ZerxCacheAspect {
      */
     @Around("@annotation(cacheable)")
     public Object aroundCacheable(ProceedingJoinPoint joinPoint, ZerxCacheable cacheable) throws Throwable {
+        // condition 为 false 时跳过缓存，直接执行方法
+        if (!isConditionMet(cacheable.condition(), joinPoint)) {
+            return joinPoint.proceed();
+        }
+
         String cacheKey = buildCacheKey(cacheable.name(), cacheable.key(), joinPoint);
         long ttl = resolveTtl(cacheable.ttl(), cacheable.timeUnit());
 
         // 使用 CacheOps 的 Cache-Aside 模式（自动防穿透/防击穿）
-        return cacheOps.get(cacheKey, () -> {
+        Object result = cacheOps.get(cacheKey, () -> {
             try {
                 return joinPoint.proceed();
             } catch (Throwable t) {
@@ -72,6 +81,13 @@ public class ZerxCacheAspect {
                 throw new RuntimeException(t);
             }
         }, ttl, cacheable.timeUnit());
+
+        // unless 为 true 时清除刚写入的缓存
+        if (!cacheable.unless().isEmpty() && isUnlessTrue(cacheable.unless(), joinPoint, result)) {
+            cacheOps.evict(cacheKey);
+        }
+
+        return result;
     }
 
     /**
@@ -145,7 +161,7 @@ public class ZerxCacheAspect {
             String paramHash = String.valueOf(java.util.Arrays.hashCode(joinPoint.getArgs()));
             spelValue = signature.getMethod().getName() + ":" + paramHash;
         } else {
-            spelValue = keyExpression != null ? keyExpression : "unknown";
+            spelValue = "unknown";
         }
         return name + ":" + spelValue;
     }
@@ -155,33 +171,71 @@ public class ZerxCacheAspect {
      */
     private String parseSpel(String expression, ProceedingJoinPoint joinPoint) {
         try {
-            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-            Method method = signature.getMethod();
-            Object[] args = joinPoint.getArgs();
-            String[] paramNames = nameDiscoverer.getParameterNames(method);
-
-            EvaluationContext context = new StandardEvaluationContext();
-            if (paramNames != null) {
-                for (int i = 0; i < paramNames.length; i++) {
-                    context.setVariable(paramNames[i], args[i]);
-                }
-            }
-            // 兼容 #p0, #p1 形式
-            for (int i = 0; i < args.length; i++) {
-                context.setVariable("p" + i, args[i]);
-            }
-            // 兼容 #a0, #a1 形式（Spring 标准）
-            for (int i = 0; i < args.length; i++) {
-                context.setVariable("a" + i, args[i]);
-            }
-
-            Expression exp = parser.parseExpression(expression);
+            EvaluationContext context = buildEvaluationContext(joinPoint);
+            Expression exp = expressionCache.computeIfAbsent(expression, parser::parseExpression);
             Object value = exp.getValue(context);
             return value != null ? value.toString() : "null";
         } catch (Exception e) {
             LOG.warn("Failed to parse SpEL expression: '{}', fallback to raw string", expression, e);
             return expression;
         }
+    }
+
+    /**
+     * 评估 condition 表达式，为空时返回 true。
+     */
+    private boolean isConditionMet(String condition, ProceedingJoinPoint joinPoint) {
+        if (condition == null || condition.isEmpty()) {
+            return true;
+        }
+        try {
+            EvaluationContext context = buildEvaluationContext(joinPoint);
+            Expression exp = expressionCache.computeIfAbsent(condition, parser::parseExpression);
+            return Boolean.TRUE.equals(exp.getValue(context, Boolean.class));
+        } catch (Exception e) {
+            LOG.warn("Failed to evaluate condition expression: '{}', defaulting to true", condition, e);
+            return true;
+        }
+    }
+
+    /**
+     * 评估 unless 表达式，为空时返回 false。
+     */
+    private boolean isUnlessTrue(String unless, ProceedingJoinPoint joinPoint, Object result) {
+        if (unless == null || unless.isEmpty()) {
+            return false;
+        }
+        try {
+            EvaluationContext context = buildEvaluationContext(joinPoint);
+            context.setVariable("result", result);
+            Expression exp = expressionCache.computeIfAbsent(unless, parser::parseExpression);
+            return Boolean.TRUE.equals(exp.getValue(context, Boolean.class));
+        } catch (Exception e) {
+            LOG.warn("Failed to evaluate unless expression: '{}', defaulting to false", unless, e);
+            return false;
+        }
+    }
+
+    /**
+     * 构建 SpEL 求值上下文。
+     */
+    private EvaluationContext buildEvaluationContext(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        Object[] args = joinPoint.getArgs();
+        String[] paramNames = nameDiscoverer.getParameterNames(method);
+
+        EvaluationContext context = new StandardEvaluationContext();
+        if (paramNames != null) {
+            for (int i = 0; i < paramNames.length; i++) {
+                context.setVariable(paramNames[i], args[i]);
+            }
+        }
+        for (int i = 0; i < args.length; i++) {
+            context.setVariable("p" + i, args[i]);
+            context.setVariable("a" + i, args[i]);
+        }
+        return context;
     }
 
     /**

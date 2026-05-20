@@ -106,18 +106,23 @@ public class ZerxLoggingAutoConfiguration {
     @ConditionalOnClass(name = "ch.qos.logback.classic.LoggerContext")
     static class LogbackConfiguration {
 
-        /**
-         * 注册脱敏消息转换器作为 Spring Bean
-         * <p>
-         * 便于在代码中获取或通过 {@code LogbackConfigurator} 编程式配置 Logback。
-         * </p>
-         *
-         * @return 脱敏消息转换器实例
-         */
         @Bean
         @ConditionalOnMissingBean(com.zerx.spring.logging.converter.SensitiveMessageConverter.class)
         public com.zerx.spring.logging.converter.SensitiveMessageConverter sensitiveMessageConverter() {
             return new com.zerx.spring.logging.converter.SensitiveMessageConverter();
+        }
+
+        /**
+         * JSON 日志 Encoder 初始化器。
+         * <p>
+         * 当 {@code zerx.logging.json-format.enabled=true} 时，自动将 Console Appender
+         * 的 Encoder 替换为 {@link com.zerx.spring.logging.appender.ZerxJsonEncoder}。
+         * </p>
+         */
+        @Bean
+        @ConditionalOnProperty(prefix = "zerx.logging.json-format", name = "enabled", havingValue = "true")
+        public ZerxJsonEncoderInitializer zerxJsonEncoderInitializer(ZerxLoggingProperties properties) {
+            return new ZerxJsonEncoderInitializer(properties);
         }
     }
 }

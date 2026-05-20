@@ -2,7 +2,6 @@ package com.zerx.spring.web.filter;
 
 import java.io.IOException;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import com.zerx.spring.web.properties.ZerxWebProperties;
 import com.zerx.spring.web.sensitive.SensitiveDataMasker;
@@ -25,9 +23,8 @@ import com.zerx.spring.web.sensitive.SensitiveDataMasker;
  * <h3>高性能设计：</h3>
  * <ul>
  *   <li>先执行 FilterChain，后异步格式化日志字符串，不阻塞请求</li>
- *   <li>使用 {@link ContentCachingResponseWrapper} 缓存响应体（不复制流，仅代理缓冲区）</li>
+ *   <li>仅读取状态码和请求参数，不缓冲响应体，零额外内存开销</li>
  *   <li>健康检查/静态资源等高频低价值路径可通过 excludeUrls 快速跳过</li>
- *   <li>请求体仅在需要读取时通过 {@code getInputStream()} 读取一次</li>
  * </ul>
  *
  * @author zerx
@@ -52,8 +49,7 @@ public class AccessLogFilter extends OncePerRequestFilter {
      */
     public AccessLogFilter(ZerxWebProperties properties) {
         ZerxWebProperties.AccessLog accessLog = properties.getAccessLog();
-        this.excludePaths = ConcurrentHashMap.newKeySet();
-        this.excludePaths.addAll(accessLog.getExcludeUrls());
+        this.excludePaths = Set.copyOf(accessLog.getExcludeUrls());
         this.masker = new SensitiveDataMasker(accessLog.getSensitiveParams());
         this.slowThresholdMs = accessLog.getSlowThresholdMs();
     }
@@ -61,7 +57,6 @@ public class AccessLogFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        // 快速排除：静态资源、健康检查、OpenAPI 等
         if (excludePaths.isEmpty()) {
             return false;
         }
@@ -83,27 +78,22 @@ public class AccessLogFilter extends OncePerRequestFilter {
                                      HttpServletResponse response,
                                      FilterChain filterChain) throws ServletException, IOException {
         long startNanos = System.nanoTime();
-        ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
 
         try {
-            filterChain.doFilter(request, wrappedResponse);
+            filterChain.doFilter(request, response);
         } finally {
-            // 异步日志：格式化字符串不阻塞响应
             long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
-            logAccess(request, wrappedResponse, elapsedMs);
-            // 将缓存的响应内容写回原始 response
-            wrappedResponse.copyBodyToResponse();
+            logAccess(request, response, elapsedMs);
         }
     }
 
-    private void logAccess(HttpServletRequest request, ContentCachingResponseWrapper response, long elapsedMs) {
+    private void logAccess(HttpServletRequest request, HttpServletResponse response, long elapsedMs) {
         String method = request.getMethod();
         String uri = request.getRequestURI();
         String query = request.getQueryString();
         int status = response.getStatus();
         String clientIp = request.getRemoteAddr();
 
-        // 格式化查询参数（脱敏）
         String maskedQuery = (query != null) ? masker.mask(query) : null;
         String queryString = maskedQuery != null ? "?" + maskedQuery : "";
 

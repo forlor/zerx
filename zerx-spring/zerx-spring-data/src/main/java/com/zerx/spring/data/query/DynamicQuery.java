@@ -57,9 +57,10 @@ public class DynamicQuery {
     private int groupByCount;
     private int orderByCount;
     private boolean limitApplied;
+    private int paginationParamCount;
 
     /**
-     * 表名后是否刚追加了 " ("，用于 OR 组内第一个条件的判断。
+     * OR 组内第一个条件的判断标记。
      */
     private boolean afterOrOpenParen;
 
@@ -477,6 +478,7 @@ public class DynamicQuery {
         sql.append(" LIMIT ?");
         params.add(limit);
         limitApplied = true;
+        paginationParamCount++;
         return this;
     }
 
@@ -486,6 +488,7 @@ public class DynamicQuery {
     public DynamicQuery offset(int offset) {
         sql.append(" OFFSET ?");
         params.add(offset);
+        paginationParamCount++;
         return this;
     }
 
@@ -524,14 +527,69 @@ public class DynamicQuery {
     }
 
     /**
-     * 统计查询结果数
+     * 统计查询结果数。
+     * <p>
+     * 无 GROUP BY 时直接替换 SELECT 子句为 COUNT(*)，避免子查询包装；
+     * 有 GROUP BY 时保留子查询（COUNT 统计分组数）。
+     * ORDER BY 在 COUNT 查询中无意义且增加排序开销，始终剥离。
+     * </p>
      *
      * @return 记录数
      */
     public long count() {
-        String countSql = "SELECT COUNT(*) FROM (" + sql + ") _cnt";
-        Long count = jdbcTemplate.queryForObject(countSql, Long.class, params.toArray());
+        String baseSql = sql.toString();
+        String countSql;
+        Object[] countParams;
+
+        if (groupByCount == 0) {
+            // 无 GROUP BY：替换 SELECT ... FROM 为 SELECT COUNT(*) FROM
+            int fromIdx = indexOfFrom(baseSql);
+            String afterFrom = baseSql.substring(fromIdx);
+            // 剥离 ORDER BY / LIMIT / OFFSET（COUNT 不需要，且会导致参数不匹配）
+            int orderByIdx = indexOfOrderBy(afterFrom);
+            if (orderByIdx >= 0) {
+                afterFrom = afterFrom.substring(0, orderByIdx);
+            } else {
+                // 无 ORDER BY 但可能有 LIMIT/OFFSET
+                int limitIdx = indexOfKeyword(afterFrom, " limit ");
+                if (limitIdx >= 0) {
+                    afterFrom = afterFrom.substring(0, limitIdx);
+                }
+            }
+            countSql = "SELECT COUNT(*)" + afterFrom;
+            // 移除分页参数（LIMIT/OFFSET 添加的参数在 params 末尾）
+            if (paginationParamCount > 0) {
+                int size = params.size();
+                countParams = params.subList(0, size - paginationParamCount).toArray();
+            } else {
+                countParams = params.toArray();
+            }
+        } else {
+            // 有 GROUP BY：子查询统计分组数
+            countSql = "SELECT COUNT(*) FROM (" + baseSql + ") _cnt";
+            countParams = params.toArray();
+        }
+
+        Long count = jdbcTemplate.queryForObject(countSql, Long.class, countParams);
         return count != null ? count : 0;
+    }
+
+    private static int indexOfFrom(String sql) {
+        String lower = sql.toLowerCase();
+        int idx = lower.indexOf(" from ");
+        return idx >= 0 ? idx : 0;
+    }
+
+    private static int indexOfOrderBy(String sql) {
+        String lower = sql.toLowerCase();
+        int idx = lower.lastIndexOf(" order by ");
+        return idx;
+    }
+
+    private static int indexOfKeyword(String sql, String keyword) {
+        String lower = sql.toLowerCase();
+        int idx = lower.lastIndexOf(keyword);
+        return idx >= 0 ? idx : -1;
     }
 
     /**
