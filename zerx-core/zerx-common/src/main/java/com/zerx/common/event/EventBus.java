@@ -1,7 +1,6 @@
 package com.zerx.common.event;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * 领域事件总线接口

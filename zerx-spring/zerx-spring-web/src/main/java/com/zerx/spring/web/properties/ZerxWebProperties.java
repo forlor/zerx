@@ -1,8 +1,8 @@
 package com.zerx.spring.web.properties;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.util.List;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Zerx Web 模块配置属性
@@ -344,10 +344,21 @@ public class ZerxWebProperties {
         /** 是否序列化 null 值 */
         private boolean includeNull = false;
 
-        public String getDateFormat() { return dateFormat; }
-        public void setDateFormat(String dateFormat) { this.dateFormat = dateFormat; }
-        public boolean isIncludeNull() { return includeNull; }
-        public void setIncludeNull(boolean includeNull) { this.includeNull = includeNull; }
+        public String getDateFormat() {
+            return dateFormat;
+        }
+
+        public void setDateFormat(String dateFormat) {
+            this.dateFormat = dateFormat;
+        }
+
+        public boolean isIncludeNull() {
+            return includeNull;
+        }
+
+        public void setIncludeNull(boolean includeNull) {
+            this.includeNull = includeNull;
+        }
     }
 
     /**
@@ -372,14 +383,37 @@ public class ZerxWebProperties {
                 "password", "token", "secret", "credential", "authorization", "phone", "mobile"
         );
 
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public long getSlowThresholdMs() { return slowThresholdMs; }
-        public void setSlowThresholdMs(long slowThresholdMs) { this.slowThresholdMs = slowThresholdMs; }
-        public List<String> getExcludeUrls() { return excludeUrls; }
-        public void setExcludeUrls(List<String> excludeUrls) { this.excludeUrls = excludeUrls; }
-        public List<String> getSensitiveParams() { return sensitiveParams; }
-        public void setSensitiveParams(List<String> sensitiveParams) { this.sensitiveParams = sensitiveParams; }
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public long getSlowThresholdMs() {
+            return slowThresholdMs;
+        }
+
+        public void setSlowThresholdMs(long slowThresholdMs) {
+            this.slowThresholdMs = slowThresholdMs;
+        }
+
+        public List<String> getExcludeUrls() {
+            return excludeUrls;
+        }
+
+        public void setExcludeUrls(List<String> excludeUrls) {
+            this.excludeUrls = excludeUrls;
+        }
+
+        public List<String> getSensitiveParams() {
+            return sensitiveParams;
+        }
+
+        public void setSensitiveParams(List<String> sensitiveParams) {
+            this.sensitiveParams = sensitiveParams;
+        }
     }
 
     /**
@@ -441,37 +475,132 @@ public class ZerxWebProperties {
         /** 是否启用请求日志中敏感 Header 脱敏（Authorization 等） */
         private boolean sensitiveHeaderMaskingEnabled = true;
 
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public int getConnectTimeout() { return connectTimeout; }
-        public void setConnectTimeout(int connectTimeout) { this.connectTimeout = connectTimeout; }
-        public int getReadTimeout() { return readTimeout; }
-        public void setReadTimeout(int readTimeout) { this.readTimeout = readTimeout; }
-        public int getWriteTimeout() { return writeTimeout; }
-        public void setWriteTimeout(int writeTimeout) { this.writeTimeout = writeTimeout; }
-        public int getMaxConnections() { return maxConnections; }
-        public void setMaxConnections(int maxConnections) { this.maxConnections = maxConnections; }
-        public int getMaxConnectionsPerRoute() { return maxConnectionsPerRoute; }
-        public void setMaxConnectionsPerRoute(int maxConnectionsPerRoute) { this.maxConnectionsPerRoute = maxConnectionsPerRoute; }
-        public int getConnectionIdleTimeout() { return connectionIdleTimeout; }
-        public void setConnectionIdleTimeout(int connectionIdleTimeout) { this.connectionIdleTimeout = connectionIdleTimeout; }
-        public boolean isAccessLogEnabled() { return accessLogEnabled; }
-        public void setAccessLogEnabled(boolean accessLogEnabled) { this.accessLogEnabled = accessLogEnabled; }
-        public int getMaxResponseBodyLogLength() { return maxResponseBodyLogLength; }
-        public void setMaxResponseBodyLogLength(int maxResponseBodyLogLength) { this.maxResponseBodyLogLength = maxResponseBodyLogLength; }
-        public int getMaxRetries() { return maxRetries; }
-        public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
-        public long getRetryInitialDelayMs() { return retryInitialDelayMs; }
-        public void setRetryInitialDelayMs(long retryInitialDelayMs) { this.retryInitialDelayMs = retryInitialDelayMs; }
-        public long getRetryMaxDelayMs() { return retryMaxDelayMs; }
-        public void setRetryMaxDelayMs(long retryMaxDelayMs) { this.retryMaxDelayMs = retryMaxDelayMs; }
-        public boolean isRetryJitterEnabled() { return retryJitterEnabled; }
-        public void setRetryJitterEnabled(boolean retryJitterEnabled) { this.retryJitterEnabled = retryJitterEnabled; }
-        public boolean isTracePropagationEnabled() { return tracePropagationEnabled; }
-        public void setTracePropagationEnabled(boolean tracePropagationEnabled) { this.tracePropagationEnabled = tracePropagationEnabled; }
-        public boolean isErrorHandlingEnabled() { return errorHandlingEnabled; }
-        public void setErrorHandlingEnabled(boolean errorHandlingEnabled) { this.errorHandlingEnabled = errorHandlingEnabled; }
-        public boolean isSensitiveHeaderMaskingEnabled() { return sensitiveHeaderMaskingEnabled; }
-        public void setSensitiveHeaderMaskingEnabled(boolean sensitiveHeaderMaskingEnabled) { this.sensitiveHeaderMaskingEnabled = sensitiveHeaderMaskingEnabled; }
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getConnectTimeout() {
+            return connectTimeout;
+        }
+
+        public void setConnectTimeout(int connectTimeout) {
+            this.connectTimeout = connectTimeout;
+        }
+
+        public int getReadTimeout() {
+            return readTimeout;
+        }
+
+        public void setReadTimeout(int readTimeout) {
+            this.readTimeout = readTimeout;
+        }
+
+        public int getWriteTimeout() {
+            return writeTimeout;
+        }
+
+        public void setWriteTimeout(int writeTimeout) {
+            this.writeTimeout = writeTimeout;
+        }
+
+        public int getMaxConnections() {
+            return maxConnections;
+        }
+
+        public void setMaxConnections(int maxConnections) {
+            this.maxConnections = maxConnections;
+        }
+
+        public int getMaxConnectionsPerRoute() {
+            return maxConnectionsPerRoute;
+        }
+
+        public void setMaxConnectionsPerRoute(int maxConnectionsPerRoute) {
+            this.maxConnectionsPerRoute = maxConnectionsPerRoute;
+        }
+
+        public int getConnectionIdleTimeout() {
+            return connectionIdleTimeout;
+        }
+
+        public void setConnectionIdleTimeout(int connectionIdleTimeout) {
+            this.connectionIdleTimeout = connectionIdleTimeout;
+        }
+
+        public boolean isAccessLogEnabled() {
+            return accessLogEnabled;
+        }
+
+        public void setAccessLogEnabled(boolean accessLogEnabled) {
+            this.accessLogEnabled = accessLogEnabled;
+        }
+
+        public int getMaxResponseBodyLogLength() {
+            return maxResponseBodyLogLength;
+        }
+
+        public void setMaxResponseBodyLogLength(int maxResponseBodyLogLength) {
+            this.maxResponseBodyLogLength = maxResponseBodyLogLength;
+        }
+
+        public int getMaxRetries() {
+            return maxRetries;
+        }
+
+        public void setMaxRetries(int maxRetries) {
+            this.maxRetries = maxRetries;
+        }
+
+        public long getRetryInitialDelayMs() {
+            return retryInitialDelayMs;
+        }
+
+        public void setRetryInitialDelayMs(long retryInitialDelayMs) {
+            this.retryInitialDelayMs = retryInitialDelayMs;
+        }
+
+        public long getRetryMaxDelayMs() {
+            return retryMaxDelayMs;
+        }
+
+        public void setRetryMaxDelayMs(long retryMaxDelayMs) {
+            this.retryMaxDelayMs = retryMaxDelayMs;
+        }
+
+        public boolean isRetryJitterEnabled() {
+            return retryJitterEnabled;
+        }
+
+        public void setRetryJitterEnabled(boolean retryJitterEnabled) {
+            this.retryJitterEnabled = retryJitterEnabled;
+        }
+
+        public boolean isTracePropagationEnabled() {
+            return tracePropagationEnabled;
+        }
+
+        public void setTracePropagationEnabled(boolean tracePropagationEnabled) {
+            this.tracePropagationEnabled = tracePropagationEnabled;
+        }
+
+        public boolean isErrorHandlingEnabled() {
+            return errorHandlingEnabled;
+        }
+
+        public void setErrorHandlingEnabled(boolean errorHandlingEnabled) {
+            this.errorHandlingEnabled = errorHandlingEnabled;
+        }
+
+        public boolean isSensitiveHeaderMaskingEnabled() {
+            return sensitiveHeaderMaskingEnabled;
+        }
+
+        public void setSensitiveHeaderMaskingEnabled(boolean sensitiveHeaderMaskingEnabled) {
+            this.sensitiveHeaderMaskingEnabled = sensitiveHeaderMaskingEnabled;
+        }
     }
 }

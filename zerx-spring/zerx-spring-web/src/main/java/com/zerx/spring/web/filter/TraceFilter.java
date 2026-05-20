@@ -1,17 +1,18 @@
 package com.zerx.spring.web.filter;
 
-import com.zerx.spring.web.context.RequestContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.web.filter.OncePerRequestFilter;
+import java.io.IOException;
+import java.util.UUID;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.zerx.spring.web.context.RequestContext;
 
 /**
  * 链路追踪过滤器 — 为每个请求生成并传播 TraceID
@@ -30,7 +31,7 @@ import java.util.UUID;
  */
 public class TraceFilter extends OncePerRequestFilter {
 
-    private static final Logger log = LoggerFactory.getLogger(TraceFilter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TraceFilter.class);
 
     /** 追踪 ID 请求头名称 */
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
@@ -65,8 +66,8 @@ public class TraceFilter extends OncePerRequestFilter {
             // 将 TraceID 写入响应头，方便客户端排查
             response.setHeader(TRACE_ID_HEADER, traceId);
 
-            if (log.isDebugEnabled()) {
-                log.debug("TraceID [{}] assigned for request: {} {}", traceId,
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("TraceID [{}] assigned for request: {} {}", traceId,
                         request.getMethod(), request.getRequestURI());
             }
 

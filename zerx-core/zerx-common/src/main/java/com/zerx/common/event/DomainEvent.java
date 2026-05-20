@@ -1,9 +1,9 @@
 package com.zerx.common.event;
 
-import com.zerx.common.util.UuidUtil;
-
 import java.io.Serializable;
 import java.time.Instant;
+
+import com.zerx.common.util.UuidUtil;
 
 /**
  * 领域事件基类

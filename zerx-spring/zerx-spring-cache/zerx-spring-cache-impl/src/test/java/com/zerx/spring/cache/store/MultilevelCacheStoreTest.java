@@ -146,7 +146,7 @@ class MultilevelCacheStoreTest {
 
         verify(l1Cache).evictByPrefix("user:");
         verify(l2Cache).evictByPrefix("user:");
-        verify(stringRedisTemplate).convertAndSend(eq("zerx:cache:invalidate:test:user:"), eq("evict"));
+        verify(stringRedisTemplate).convertAndSend(eq("zerx:cache:invalidate:test:user:"), eq("evict_prefix"));
     }
 
     @Test

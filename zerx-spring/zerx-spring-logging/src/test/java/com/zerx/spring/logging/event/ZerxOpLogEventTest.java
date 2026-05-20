@@ -108,17 +108,21 @@ class ZerxOpLogEventTest {
 
     @Test
     void record_equality() {
-        ZerxOpLogEvent event1 = ZerxOpLogEvent.success(
+        Instant now = Instant.now();
+        ZerxOpLogEvent event1 = new ZerxOpLogEvent(
                 "t1", 1L, "u", "m", ZerxOpLog.Type.LOGIN, "d",
-                "C", "M", null, null, null, 0L, "127.0.0.1", null
+                "C", "M", null, null, null, 0L, null, "127.0.0.1", now, null
         );
-        ZerxOpLogEvent event2 = ZerxOpLogEvent.success(
+        ZerxOpLogEvent event2 = new ZerxOpLogEvent(
                 "t1", 1L, "u", "m", ZerxOpLog.Type.LOGIN, "d",
-                "C", "M", null, null, null, 0L, "127.0.0.1", null
+                "C", "M", null, null, null, 0L, null, "127.0.0.1", now, null
         );
-        // Records with same fields should be equal, but timestamps differ
-        // Since timestamp is set to Instant.now(), they won't be equal
-        assertNotEquals(event1, event2);
+        ZerxOpLogEvent event3 = new ZerxOpLogEvent(
+                "t1", 1L, "u", "m", ZerxOpLog.Type.LOGIN, "d",
+                "C", "M", null, null, null, 0L, null, "127.0.0.1", now.plusMillis(1), null
+        );
+        assertEquals(event1, event2);
+        assertNotEquals(event1, event3);
     }
 
     @Test

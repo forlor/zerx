@@ -38,8 +38,18 @@ public class CacheInvalidationListener implements MessageListener {
             String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
             String key = extractKeyFromChannel(channel);
             if (key != null && !key.isEmpty()) {
-                l1Cache.evict(key);
-                log.debug("L1 cache invalidated via Pub/Sub: key={}", key);
+                byte[] bodyBytes = message.getBody();
+                String body = bodyBytes != null && bodyBytes.length > 0
+                        ? new String(bodyBytes, StandardCharsets.UTF_8)
+                        : "evict";
+
+                if ("evict_prefix".equals(body)) {
+                    l1Cache.evictByPrefix(key);
+                    log.debug("L1 cache invalidated via Pub/Sub (prefix): key={}", key);
+                } else {
+                    l1Cache.evict(key);
+                    log.debug("L1 cache invalidated via Pub/Sub: key={}", key);
+                }
             }
         } catch (Exception e) {
             log.warn("Failed to process cache invalidation message", e);

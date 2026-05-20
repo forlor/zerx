@@ -1,12 +1,7 @@
 package com.zerx.spring.web.advise;
 
-import com.zerx.common.exception.AuthorizationException;
-import com.zerx.common.exception.BusinessException;
-import com.zerx.common.exception.ErrorCode;
-import com.zerx.common.exception.ExternalServiceException;
-import com.zerx.common.exception.NotFoundException;
-import com.zerx.common.exception.ValidationException;
-import com.zerx.common.model.Result;
+import java.util.stream.Collectors;
+
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -20,7 +15,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
-import java.util.stream.Collectors;
+import com.zerx.common.exception.AuthorizationException;
+import com.zerx.common.exception.BusinessException;
+import com.zerx.common.exception.ErrorCode;
+import com.zerx.common.exception.ExternalServiceException;
+import com.zerx.common.exception.NotFoundException;
+import com.zerx.common.exception.ValidationException;
+import com.zerx.common.model.Result;
 
 /**
  * 全局异常处理器 — 统一异常响应格式
@@ -49,7 +50,7 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
      * 处理业务逻辑异常
@@ -60,7 +61,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleBusinessException(BusinessException ex) {
-        log.warn("Business exception: code={}, message={}", ex.getCode(), ex.getMessage());
+        LOG.warn("Business exception: code={}, message={}", ex.getCode(), ex.getMessage());
         return Result.fail(ex.getCode(), ex.getMessage());
     }
 
@@ -73,7 +74,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleValidationException(ValidationException ex) {
-        log.warn("Validation exception: code={}, field={}, message={}",
+        LOG.warn("Validation exception: code={}, field={}, message={}",
                 ex.getCode(), ex.getField(), ex.getMessage());
         return Result.fail(ex.getCode(), ex.getMessage());
     }
@@ -87,7 +88,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthorizationException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Result<Void> handleAuthorizationException(AuthorizationException ex) {
-        log.warn("Authorization exception: code={}, message={}", ex.getCode(), ex.getMessage());
+        LOG.warn("Authorization exception: code={}, message={}", ex.getCode(), ex.getMessage());
         return Result.fail(ex.getCode(), ex.getMessage());
     }
 
@@ -100,7 +101,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Result<Void> handleNotFoundException(NotFoundException ex) {
-        log.warn("Not found exception: code={}, message={}", ex.getCode(), ex.getMessage());
+        LOG.warn("Not found exception: code={}, message={}", ex.getCode(), ex.getMessage());
         return Result.fail(ex.getCode(), ex.getMessage());
     }
 
@@ -113,7 +114,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ExternalServiceException.class)
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public Result<Void> handleExternalServiceException(ExternalServiceException ex) {
-        log.error("External service exception: code={}, message={}, service={}",
+        LOG.error("External service exception: code={}, message={}, service={}",
                 ex.getCode(), ex.getMessage(), ex.getServiceName(), ex);
         return Result.fail(ex.getCode(), ex.getMessage());
     }
@@ -130,7 +131,7 @@ public class GlobalExceptionHandler {
         String detail = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining("; "));
-        log.warn("Method argument not valid: {}", detail);
+        LOG.warn("Method argument not valid: {}", detail);
         return Result.fail(ErrorCode.PARAM_INVALID.code(),
                 "参数校验失败: " + detail);
     }
@@ -147,7 +148,7 @@ public class GlobalExceptionHandler {
         String detail = ex.getConstraintViolations().stream()
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining("; "));
-        log.warn("Constraint violation: {}", detail);
+        LOG.warn("Constraint violation: {}", detail);
         return Result.fail(ErrorCode.PARAM_INVALID.code(),
                 "参数约束违反: " + detail);
     }
@@ -161,7 +162,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
-        log.warn("Http message not readable: {}", ex.getMessage());
+        LOG.warn("Http message not readable: {}", ex.getMessage());
         return Result.fail(ErrorCode.BODY_REQUIRED);
     }
 
@@ -174,7 +175,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     public Result<Void> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
-        log.warn("Method not supported: {}", ex.getMessage());
+        LOG.warn("Method not supported: {}", ex.getMessage());
         return Result.fail(ErrorCode.PARAM_FORMAT_ERROR.code(),
                 "不支持的请求方法: " + ex.getMethod());
     }
@@ -188,7 +189,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoHandlerFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Result<Void> handleNoHandlerFoundException(NoHandlerFoundException ex) {
-        log.warn("No handler found: {} {}", ex.getHttpMethod(), ex.getRequestURL());
+        LOG.warn("No handler found: {} {}", ex.getHttpMethod(), ex.getRequestURL());
         return Result.fail(ErrorCode.DATA_NOT_FOUND);
     }
 
@@ -201,7 +202,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleMaxUploadSizeExceededException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
-        log.warn("Max upload size exceeded: {}", ex.getMessage());
+        LOG.warn("Max upload size exceeded: {}", ex.getMessage());
         return Result.fail(ErrorCode.PARAM_OUT_OF_RANGE.code(), "上传文件大小超过限制");
     }
 
@@ -214,7 +215,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleMultipartException(org.springframework.web.multipart.MultipartException ex) {
-        log.warn("Multipart exception: {}", ex.getMessage());
+        LOG.warn("Multipart exception: {}", ex.getMessage());
         return Result.fail(ErrorCode.PARAM_FORMAT_ERROR.code(), "文件上传失败: " + ex.getMessage());
     }
 
@@ -227,7 +228,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception ex) {
-        log.error("Unhandled exception", ex);
+        LOG.error("Unhandled exception", ex);
         return Result.fail(ErrorCode.SYSTEM_ERROR);
     }
 }

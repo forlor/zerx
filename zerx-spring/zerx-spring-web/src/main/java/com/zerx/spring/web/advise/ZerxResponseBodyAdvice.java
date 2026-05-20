@@ -1,8 +1,7 @@
 package com.zerx.spring.web.advise;
 
-import com.zerx.common.model.Result;
-import com.zerx.spring.web.annotation.ZerxResponseResult;
-import com.zerx.spring.web.properties.ZerxWebProperties;
+import java.lang.reflect.Method;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
@@ -14,7 +13,9 @@ import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
-import java.lang.reflect.Method;
+import com.zerx.common.model.Result;
+import com.zerx.spring.web.annotation.ZerxResponseResult;
+import com.zerx.spring.web.properties.ZerxWebProperties;
 
 /**
  * 统一响应体增强 — 自动包装返回值为 {@code Result<T>}
@@ -41,7 +42,7 @@ import java.lang.reflect.Method;
  */
 public class ZerxResponseBodyAdvice implements ResponseBodyAdvice<Object> {
 
-    private static final Logger log = LoggerFactory.getLogger(ZerxResponseBodyAdvice.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZerxResponseBodyAdvice.class);
 
     private final ZerxWebProperties properties;
 
@@ -123,7 +124,7 @@ public class ZerxResponseBodyAdvice implements ResponseBodyAdvice<Object> {
                 // 将 Result 序列化为 JSON 字符串返回
                 return toJson(Result.ok(body));
             } catch (Exception e) {
-                log.error("Failed to serialize Result for String return type", e);
+                LOG.error("Failed to serialize Result for String return type", e);
                 return Result.ok(body);
             }
         }

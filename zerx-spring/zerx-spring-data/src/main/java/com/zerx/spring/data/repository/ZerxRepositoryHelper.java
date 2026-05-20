@@ -114,23 +114,29 @@ public class ZerxRepositoryHelper {
      */
     public <T extends BaseEntity> boolean existsByIds(Class<T> entityClass,
                                                        Iterable<Long> ids) {
-        Collection<Long> idCollection = (ids instanceof Collection<?> c)
-                ? (Collection<Long>) c
-                : new ArrayList<>();
+        if (ids == null) {
+            return false;
+        }
+        java.util.Set<Long> idSet = new java.util.LinkedHashSet<>();
+        for (Long id : ids) {
+            if (id != null) {
+                idSet.add(id);
+            }
+        }
 
-        if (idCollection.isEmpty()) {
+        if (idSet.isEmpty()) {
             return false;
         }
 
         String tableName = NamingUtils.resolveTableName(entityClass);
-        String placeholders = idCollection.stream()
+        String placeholders = idSet.stream()
                 .map(v -> "?")
                 .collect(java.util.stream.Collectors.joining(","));
 
         String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE id IN (" + placeholders + ")";
-        Long count = jdbcTemplate.queryForObject(sql, Long.class, idCollection.toArray());
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, idSet.toArray());
 
-        return count != null && count == idCollection.size();
+        return count != null && count == idSet.size();
     }
 
     /**

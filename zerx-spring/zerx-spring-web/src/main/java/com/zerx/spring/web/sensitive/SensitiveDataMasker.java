@@ -28,6 +28,11 @@ public final class SensitiveDataMasker {
     /** 预编译的规则列表 */
     private final List<Rule> rules;
 
+    /**
+     * 构造脱敏器并预编译正则
+     *
+     * @param sensitiveParams 敏感参数配置列表
+     */
     public SensitiveDataMasker(List<String> sensitiveParams) {
         this.rules = new ArrayList<>(sensitiveParams.size());
         for (String param : sensitiveParams) {
@@ -76,5 +81,6 @@ public final class SensitiveDataMasker {
      * @param kvPattern URL query string 匹配模式
      * @param jsonPattern JSON key:value 匹配模式
      */
-    private record Rule(String paramName, Pattern kvPattern, Pattern jsonPattern) {}
+    private record Rule(String paramName, Pattern kvPattern, Pattern jsonPattern) {
+    }
 }

@@ -24,6 +24,13 @@ public record PageResult<T>(List<T> records, long total, int page, int size, int
     private static final long serialVersionUID = 1L;
 
     /**
+     * 紧凑构造器，确保存储不可变集合以防内部表示暴露
+     */
+    public PageResult {
+        records = records != null ? List.copyOf(records) : List.of();
+    }
+
+    /**
      * 便捷构造：自动计算总页数
      *
      * @param records 当前页数据列表

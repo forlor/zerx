@@ -8,7 +8,7 @@
 
     <!-- 排除测试代码 -->
     <Match>
-        <Class name="~.*Test"/>
+        <Class name="~.*Test.*"/>
     </Match>
 
     <!-- 工具类中的静态方法返回null是合理的（如空集合场景） -->
@@ -30,6 +30,15 @@
     <!-- 工具类构造函数可见性（工具类通过私有构造阻止实例化） -->
     <Match>
         <Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
+    </Match>
+
+    <!-- Spring @ConfigurationProperties 属性绑定允许内部集合暴露，以及组件注入配置类 -->
+    <Match>
+        <Or>
+            <Class name="~com\.zerx\.spring\.web\.properties\..*"/>
+            <Class name="com.zerx.spring.web.advise.ZerxResponseBodyAdvice"/>
+        </Or>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
 
 </FindBugsFilter>

@@ -1,6 +1,5 @@
 package com.zerx.common.util;
 
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -50,7 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author zerx
  * @see AtomicLong
  */
-public class SnowflakeId {
+public final class SnowflakeId {
 
     // ======================== 位段定义 ========================
 

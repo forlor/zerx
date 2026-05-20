@@ -1,7 +1,8 @@
 package com.zerx.spring.web.client.interceptor;
 
-import com.zerx.common.exception.ExternalServiceException;
-import com.zerx.spring.web.properties.ZerxWebProperties;
+import java.io.IOException;
+import java.time.Duration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpRequest;
@@ -11,8 +12,8 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
-import java.io.IOException;
-import java.time.Duration;
+import com.zerx.common.exception.ExternalServiceException;
+import com.zerx.spring.web.properties.ZerxWebProperties;
 
 /**
  * HTTP 请求重试拦截器
@@ -47,7 +48,7 @@ import java.time.Duration;
  */
 public class RetryInterceptor implements ClientHttpRequestInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(RetryInterceptor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RetryInterceptor.class);
 
     /** 最大重试次数（0 = 不重试） */
     private final int maxRetries;
@@ -89,7 +90,7 @@ public class RetryInterceptor implements ClientHttpRequestInterceptor {
                 // 5xx 或 429 → 可重试
                 if (status >= 500 || status == 429) {
                     if (attempt < maxRetries) {
-                        log.warn("OUTBOUND {} {} -> {} (attempt {}/{}, will retry)",
+                        LOG.warn("OUTBOUND {} {} -> {} (attempt {}/{}, will retry)",
                                 request.getMethod(), request.getURI(), status,
                                 attempt + 1, maxRetries + 1);
                         // 关闭当前响应体以释放连接
@@ -104,7 +105,7 @@ public class RetryInterceptor implements ClientHttpRequestInterceptor {
                 throw new IOException("External service error (not retryable): " + e.getMessage(), e);
             } catch (HttpServerErrorException e) {
                 if (attempt < maxRetries && isRetryableStatus(e.getStatusCode().value())) {
-                    log.warn("OUTBOUND {} {} -> {} (attempt {}/{}, will retry)",
+                    LOG.warn("OUTBOUND {} {} -> {} (attempt {}/{}, will retry)",
                             request.getMethod(), request.getURI(), e.getStatusCode().value(),
                             attempt + 1, maxRetries + 1);
                     sleep(calculateDelay(attempt));
@@ -113,7 +114,7 @@ public class RetryInterceptor implements ClientHttpRequestInterceptor {
                 throw e;
             } catch (ResourceAccessException e) {
                 if (attempt < maxRetries && isRetryableNetworkError(e)) {
-                    log.warn("OUTBOUND {} {} -> NETWORK_ERROR (attempt {}/{}, will retry): {}",
+                    LOG.warn("OUTBOUND {} {} -> NETWORK_ERROR (attempt {}/{}, will retry): {}",
                             request.getMethod(), request.getURI(),
                             attempt + 1, maxRetries + 1, e.getMessage());
                     sleep(calculateDelay(attempt));
@@ -123,7 +124,7 @@ public class RetryInterceptor implements ClientHttpRequestInterceptor {
             } catch (IOException e) {
                 lastException = e;
                 if (attempt < maxRetries) {
-                    log.warn("OUTBOUND {} {} -> IO_ERROR (attempt {}/{}, will retry): {}",
+                    LOG.warn("OUTBOUND {} {} -> IO_ERROR (attempt {}/{}, will retry): {}",
                             request.getMethod(), request.getURI(),
                             attempt + 1, maxRetries + 1, e.getMessage());
                     sleep(calculateDelay(attempt));

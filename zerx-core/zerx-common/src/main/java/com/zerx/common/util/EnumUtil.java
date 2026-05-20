@@ -1,7 +1,5 @@
 package com.zerx.common.util;
 
-import com.zerx.common.enums.BaseEnum;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -9,6 +7,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import com.zerx.common.enums.BaseEnum;
 
 /**
  * 枚举工具类
@@ -50,7 +50,8 @@ public final class EnumUtil {
      * @param <C>       编码类型
      * @return 匹配的枚举值，未找到返回 null
      */
-    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> E findByCode(Class<E> enumClass, C code) {
+    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> E findByCode(
+            Class<E> enumClass, C code) {
         if (enumClass == null || code == null) {
             return null;
         }
@@ -94,7 +95,8 @@ public final class EnumUtil {
      * @param <C>         编码类型
      * @return 匹配的枚举值，未找到返回 null
      */
-    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> E findByDescription(Class<E> enumClass, String description) {
+    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> E findByDescription(
+            Class<E> enumClass, String description) {
         if (enumClass == null || description == null) {
             return null;
         }
@@ -133,7 +135,8 @@ public final class EnumUtil {
      * @param <C>          编码类型
      * @return 枚举描述或默认值
      */
-    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> String getDescription(Class<E> enumClass, C code, String defaultValue) {
+    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> String getDescription(
+            Class<E> enumClass, C code, String defaultValue) {
         E e = findByCode(enumClass, code);
         return e != null ? e.getDescription() : defaultValue;
     }
@@ -222,7 +225,8 @@ public final class EnumUtil {
      * @param <C>       编码类型
      * @return 枚举值列表
      */
-    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> List<E> toBaseEnumList(Class<E> enumClass) {
+    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> List<E> toBaseEnumList(
+            Class<E> enumClass) {
         return toList(enumClass);
     }
 
@@ -279,7 +283,8 @@ public final class EnumUtil {
      * @param <C>       编码类型
      * @return Pair(code, description) 列表
      */
-    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> List<com.zerx.common.model.Pair<C, String>> toOptions(Class<E> enumClass) {
+    public static <E extends Enum<E> & BaseEnum<C>, C extends Serializable> List<com.zerx.common.model.Pair<C, String>> toOptions(
+            Class<E> enumClass) {
         if (enumClass == null) {
             return List.of();
         }

@@ -40,6 +40,12 @@
         <property name="message" value="请使用 LF 换行符，不要使用 CRLF"/>
     </module>
 
+    <!-- 行长度限制 -->
+    <module name="LineLength">
+        <property name="max" value="140"/>
+        <property name="ignorePattern" value="^import.*|^\s*\*.*@|//.*$"/>
+    </module>
+
     <!-- ==================== TreeWalker（代码结构检查） ==================== -->
     <module name="TreeWalker">
 
@@ -163,11 +169,7 @@
                              STATIC_INIT, INSTANCE_INIT, RECORD_DEF, COMPACT_CTOR_DEF"/>
         </module>
 
-        <!-- 行长度限制 -->
-        <module name="LineLength">
-            <property name="max" value="140"/>
-            <property name="ignorePattern" value="^import.*|^\s*\*.*@|//.*$"/>
-        </module>
+
 
         <!-- 单行代码不能过长 -->
         <module name="MethodLength">
@@ -197,10 +199,6 @@
                      value="GenericWhitespace ''{0}'' 前缺少空白"/>
         </module>
 
-        <!-- 数组初始化换行 -->
-        <module name="ArrayInitCurlyBracePlacement">
-            <property name="newLineAfter" value="never"/>
-        </module>
 
         <!-- ===== 编码实践 ===== -->
 
@@ -242,7 +240,7 @@
         <module name="MissingJavadocType">
             <property name="scope" value="public"/>
             <property name="tokens"
-                      value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, ANNOTATION_DEF, RECORD_DEF"/>
+                      value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, ANNOTATION_DEF"/>
         </module>
 
         <!-- 公共方法必须有 Javadoc（允许 getter/setter/toString 等省略） -->

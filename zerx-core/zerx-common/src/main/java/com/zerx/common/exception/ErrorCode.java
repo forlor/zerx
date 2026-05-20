@@ -1,13 +1,11 @@
 package com.zerx.common.exception;
 
-import com.zerx.common.enums.BaseEnum;
-
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
+
+import com.zerx.common.enums.BaseEnum;
 
 /**
  * 统一错误码与响应码

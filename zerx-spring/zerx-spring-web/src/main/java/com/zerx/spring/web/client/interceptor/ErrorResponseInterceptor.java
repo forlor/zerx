@@ -1,7 +1,10 @@
 package com.zerx.spring.web.client.interceptor;
 
-import com.zerx.common.exception.ErrorCode;
-import com.zerx.common.exception.ExternalServiceException;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpRequest;
@@ -13,10 +16,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import com.zerx.common.exception.ErrorCode;
+import com.zerx.common.exception.ExternalServiceException;
 
 /**
  * 外部服务异常转换拦截器
@@ -39,7 +40,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class ErrorResponseInterceptor implements ClientHttpRequestInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(ErrorResponseInterceptor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ErrorResponseInterceptor.class);
 
     /** 响应体最大读取长度（用于错误日志），防止 OOM */
     private static final int MAX_ERROR_BODY_LENGTH = 2048;
@@ -66,7 +67,7 @@ public class ErrorResponseInterceptor implements ClientHttpRequestInterceptor {
             String message = String.format("外部服务 [%s] %s 返回 %d: %s",
                     extractHost(uri), method, statusCode, truncate(responseBody, 200));
 
-            log.warn("External service error: {} {} -> {}: {}", method, uri, statusCode, responseBody);
+            LOG.warn("External service error: {} {} -> {}: {}", method, uri, statusCode, responseBody);
 
             throw new ExternalServiceException(errorCode, message, null, extractHost(uri));
         } catch (HttpClientErrorException | HttpServerErrorException e) {

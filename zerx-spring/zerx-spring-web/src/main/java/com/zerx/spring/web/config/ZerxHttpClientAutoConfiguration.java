@@ -1,7 +1,8 @@
 package com.zerx.spring.web.config;
 
-import com.zerx.spring.web.client.interceptor.*;
-import com.zerx.spring.web.properties.ZerxWebProperties;
+import java.net.http.HttpClient;
+import java.time.Duration;
+
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,8 +11,12 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
-import java.net.http.HttpClient;
-import java.time.Duration;
+import com.zerx.spring.web.client.interceptor.ErrorResponseInterceptor;
+import com.zerx.spring.web.client.interceptor.OutboundAccessLogInterceptor;
+import com.zerx.spring.web.client.interceptor.RetryInterceptor;
+import com.zerx.spring.web.client.interceptor.SensitiveHeaderInterceptor;
+import com.zerx.spring.web.client.interceptor.TracePropagationInterceptor;
+import com.zerx.spring.web.properties.ZerxWebProperties;
 
 /**
  * HTTP 客户端自动配置

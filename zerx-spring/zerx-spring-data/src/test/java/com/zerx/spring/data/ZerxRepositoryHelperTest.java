@@ -91,6 +91,17 @@ class ZerxRepositoryHelperTest {
         assertFalse(helper.existsByIds(TestProduct.class, null));
     }
 
+    @Test
+    void existsByIds_non_collection_iterable() {
+        Iterable<Long> ids = () -> List.of(1L, 2L, 3L).iterator();
+        assertTrue(helper.existsByIds(TestProduct.class, ids));
+    }
+
+    @Test
+    void existsByIds_with_duplicates() {
+        assertTrue(helper.existsByIds(TestProduct.class, List.of(1L, 2L, 2L, 3L, 3L)));
+    }
+
     // ======================== findPage 测试 ========================
 
     @Test

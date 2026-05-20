@@ -1,16 +1,15 @@
 package com.zerx.spring.web.client.interceptor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.client.ClientHttpRequestExecution;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.ClientHttpResponse;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
 
 /**
  * 出站请求访问日志拦截器
@@ -31,7 +30,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class OutboundAccessLogInterceptor implements ClientHttpRequestInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(OutboundAccessLogInterceptor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(OutboundAccessLogInterceptor.class);
 
     /** 响应体最大记录长度（字节），0 表示不记录响应体 */
     private final int maxResponseBodyLength;
@@ -66,8 +65,8 @@ public class OutboundAccessLogInterceptor implements ClientHttpRequestIntercepto
         int status = response.getStatusCode().value();
         String statusColor = status >= 500 ? "[SERVER_ERROR]" : status >= 400 ? "[CLIENT_ERROR]" : "";
 
-        if (log.isInfoEnabled()) {
-            log.info("{} OUTBOUND {} {} -> {} ({}ms) request={} response={}",
+        if (LOG.isInfoEnabled()) {
+            LOG.info("{} OUTBOUND {} {} -> {} ({}ms) request={} response={}",
                     statusColor,
                     request.getMethod(),
                     request.getURI(),

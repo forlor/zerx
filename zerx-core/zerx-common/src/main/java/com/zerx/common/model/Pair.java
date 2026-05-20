@@ -2,6 +2,7 @@ package com.zerx.common.model;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 二元组（Pair）
@@ -15,8 +16,8 @@ import java.util.Map;
  * <pre>{@code
  * // 返回名字和年龄
  * Pair<String, Integer> nameAndAge = Pair.of("Alice", 25);
- * System.out.println(nameAndAge.left());  // "Alice"
- * System.out.println(nameAndAge.right()); // 25
+ * log.info(nameAndAge.left());  // "Alice"
+ * log.info(String.valueOf(nameAndAge.right())); // 25
  *
  * // 用于分组计算
  * Map<String, Pair<Integer, Double>> stats = Map.of(
@@ -114,12 +115,19 @@ public record Pair<L, R>(L left, R right) implements Serializable {
 
             @Override
             public boolean equals(Object o) {
-                return Pair.this.equals(o);
+                if (this == o) {
+                    return true;
+                }
+                if (!(o instanceof Map.Entry<?, ?> entry)) {
+                    return false;
+                }
+                return Objects.equals(left, entry.getKey())
+                        && Objects.equals(right, entry.getValue());
             }
 
             @Override
             public int hashCode() {
-                return Pair.this.hashCode();
+                return Objects.hashCode(left) ^ Objects.hashCode(right);
             }
         };
     }

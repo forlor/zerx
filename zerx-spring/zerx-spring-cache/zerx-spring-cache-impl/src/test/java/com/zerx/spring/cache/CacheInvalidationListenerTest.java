@@ -38,6 +38,20 @@ class CacheInvalidationListenerTest {
     }
 
     @Test
+    void onMessage_evictsL1CacheWithPrefix() {
+        String key = "zerx:user:";
+        String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + key;
+        var message = new DefaultMessage(
+                channel.getBytes(StandardCharsets.UTF_8),
+                "evict_prefix".getBytes(StandardCharsets.UTF_8));
+
+        listener.onMessage(message, null);
+
+        verify(l1Cache).evictByPrefix(key);
+        verify(l1Cache, never()).evict(anyString());
+    }
+
+    @Test
     void onMessage_handlesChannelWithFullPrefix() {
         String key = "zerx:user:123";
         String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + key;

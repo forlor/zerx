@@ -1,7 +1,5 @@
 package com.zerx.common.enums;
 
-import java.io.Serializable;
-
 /**
  * 通用状态枚举
  * <p>

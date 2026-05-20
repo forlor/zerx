@@ -1,13 +1,13 @@
 package com.zerx.common.model;
 
-import com.zerx.common.exception.ValidationException;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+
+import com.zerx.common.exception.ValidationException;
 
 /**
  * 统一校验结果封装

@@ -314,6 +314,15 @@ public class LruCache<K, V> {
         }
     }
 
+    /**
+     * 防止 Finalizer 攻击
+     */
+    @Override
+    @SuppressWarnings("deprecation")
+    protected final void finalize() {
+        // do nothing
+    }
+
     // ======================== 内部实现 ========================
 
     /**

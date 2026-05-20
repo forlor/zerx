@@ -1,11 +1,12 @@
 package com.zerx.spring.web.interceptor;
 
-import com.zerx.spring.web.context.RequestContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.HandlerInterceptor;
+
+import com.zerx.spring.web.context.RequestContext;
 
 /**
  * 请求上下文拦截器 — 初始化和清理 RequestContext
@@ -25,7 +26,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  */
 public class RequestContextInterceptor implements HandlerInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(RequestContextInterceptor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RequestContextInterceptor.class);
 
     /** X-Forwarded-For 请求头 */
     private static final String X_FORWARDED_FOR = "X-Forwarded-For";
@@ -53,8 +54,8 @@ public class RequestContextInterceptor implements HandlerInterceptor {
         String clientIp = resolveClientIp(request);
         ctx.setRequestIp(clientIp);
 
-        if (log.isDebugEnabled()) {
-            log.debug("RequestContext initialized: ip={}, uri={}", clientIp, request.getRequestURI());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("RequestContext initialized: ip={}, uri={}", clientIp, request.getRequestURI());
         }
 
         return true;
@@ -74,7 +75,7 @@ public class RequestContextInterceptor implements HandlerInterceptor {
         // TraceFilter 会清理，此处不重复清理
         // 但作为安全措施，在 finally 风格中确保清理
         if (ex != null) {
-            log.debug("RequestContext cleanup with exception: {}", ex.getMessage());
+            LOG.debug("RequestContext cleanup with exception: {}", ex.getMessage());
         }
     }
 

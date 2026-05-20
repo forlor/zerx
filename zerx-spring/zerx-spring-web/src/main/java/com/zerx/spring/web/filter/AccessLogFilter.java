@@ -1,7 +1,9 @@
 package com.zerx.spring.web.filter;
 
-import com.zerx.spring.web.properties.ZerxWebProperties;
-import com.zerx.spring.web.sensitive.SensitiveDataMasker;
+import java.io.IOException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,9 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
-import java.io.IOException;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import com.zerx.spring.web.properties.ZerxWebProperties;
+import com.zerx.spring.web.sensitive.SensitiveDataMasker;
 
 /**
  * 请求访问日志过滤器 — 高性能异步记录
@@ -33,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class AccessLogFilter extends OncePerRequestFilter {
 
-    private static final Logger log = LoggerFactory.getLogger(AccessLogFilter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AccessLogFilter.class);
 
     /** 预计算的排除路径集合，启动时构建，请求时 O(1) 查找 */
     private final Set<String> excludePaths;
@@ -44,6 +45,11 @@ public class AccessLogFilter extends OncePerRequestFilter {
     /** 慢请求阈值（毫秒） */
     private final long slowThresholdMs;
 
+    /**
+     * 构造访问日志过滤器
+     *
+     * @param properties Web 模块配置属性
+     */
     public AccessLogFilter(ZerxWebProperties properties) {
         ZerxWebProperties.AccessLog accessLog = properties.getAccessLog();
         this.excludePaths = ConcurrentHashMap.newKeySet();
@@ -105,15 +111,15 @@ public class AccessLogFilter extends OncePerRequestFilter {
                 method, uri, queryString, status, elapsedMs, clientIp);
 
         if (elapsedMs >= slowThresholdMs) {
-            log.warn("[SLOW] {}", logMessage);
+            LOG.warn("[SLOW] {}", logMessage);
         } else if (status >= 500) {
-            log.error("[ERROR] {}", logMessage);
+            LOG.error("[ERROR] {}", logMessage);
         } else if (status >= 400) {
-            log.warn("[CLIENT_ERROR] {}", logMessage);
-        } else if (log.isDebugEnabled()) {
-            log.debug("{}", logMessage);
+            LOG.warn("[CLIENT_ERROR] {}", logMessage);
+        } else if (LOG.isDebugEnabled()) {
+            LOG.debug("{}", logMessage);
         } else {
-            log.info("{}", logMessage);
+            LOG.info("{}", logMessage);
         }
     }
 }

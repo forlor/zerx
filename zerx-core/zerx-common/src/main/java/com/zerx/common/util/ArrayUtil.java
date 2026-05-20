@@ -1,7 +1,13 @@
 package com.zerx.common.util;
 
 import java.lang.reflect.Array;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
@@ -762,7 +768,7 @@ public final class ArrayUtil {
      */
     public static <T> T[] resize(T[] array, int newSize) {
         if (array == null) {
-            return Arrays.copyOf(array, 0);
+            throw new NullPointerException("array must not be null");
         }
         return Arrays.copyOf(array, newSize);
     }

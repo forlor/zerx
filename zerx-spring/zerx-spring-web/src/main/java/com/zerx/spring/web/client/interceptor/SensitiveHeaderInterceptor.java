@@ -1,14 +1,14 @@
 package com.zerx.spring.web.client.interceptor;
 
-import org.springframework.http.HttpRequest;
-import org.springframework.http.client.ClientHttpRequestExecution;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.ClientHttpResponse;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+
+import org.springframework.http.HttpRequest;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
 
 /**
  * 敏感 Header 脱敏拦截器

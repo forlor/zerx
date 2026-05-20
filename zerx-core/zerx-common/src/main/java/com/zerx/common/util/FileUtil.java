@@ -119,8 +119,9 @@ public final class FileUtil {
      */
     public static void writeFile(Path path, String content, Charset charset, boolean append) throws IOException {
         // 确保父目录存在
-        if (path.getParent() != null) {
-            Files.createDirectories(path.getParent());
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         if (append) {
             Files.writeString(path, content, charset, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -137,8 +138,9 @@ public final class FileUtil {
      * @throws IOException IO 异常时抛出
      */
     public static void writeFile(Path path, byte[] bytes) throws IOException {
-        if (path.getParent() != null) {
-            Files.createDirectories(path.getParent());
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         Files.write(path, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
@@ -151,8 +153,9 @@ public final class FileUtil {
      * @throws IOException IO 异常时抛出
      */
     public static void writeFileLines(Path path, Iterable<String> lines) throws IOException {
-        if (path.getParent() != null) {
-            Files.createDirectories(path.getParent());
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         Files.write(path, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }

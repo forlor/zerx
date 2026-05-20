@@ -1,13 +1,12 @@
 package com.zerx.common.util;
 
-import com.zerx.common.exception.ErrorCode;
-import com.zerx.common.exception.ZerxException;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+
+import com.zerx.common.exception.ErrorCode;
+import com.zerx.common.exception.ZerxException;
 
 /**
  * 异常工具类

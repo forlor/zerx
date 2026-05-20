@@ -1,6 +1,7 @@
 package com.zerx.spring.web.config;
 
-import com.zerx.spring.web.properties.ZerxWebProperties;
+import java.util.Set;
+
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.Filter;
@@ -16,7 +17,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.util.Set;
+import com.zerx.spring.web.properties.ZerxWebProperties;
 
 /**
  * Micrometer HTTP 可观测性自动配置

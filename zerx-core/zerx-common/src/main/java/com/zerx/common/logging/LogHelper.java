@@ -1,12 +1,10 @@
 package com.zerx.common.logging;
 
-import com.zerx.common.exception.ErrorCode;
-import com.zerx.common.exception.ZerxException;
-import com.zerx.common.util.ExceptionUtil;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.zerx.common.util.ExceptionUtil;
 
 /**
  * 日志异常格式化工具

@@ -100,21 +100,21 @@ public class MultilevelCacheStore implements CacheStore {
         }
 
         // 通知其他节点清除 L1
-        publishInvalidation(key);
+        publishInvalidation(key, "evict");
     }
 
     @Override
     public void evict(String key) {
         l1.evict(key);
         l2.evict(key);
-        publishInvalidation(key);
+        publishInvalidation(key, "evict");
     }
 
     @Override
     public void evictByPrefix(String prefix) {
         l1.evictByPrefix(prefix);
         l2.evictByPrefix(prefix);
-        publishInvalidation(prefix);
+        publishInvalidation(prefix, "evict_prefix");
     }
 
     @Override
@@ -177,23 +177,23 @@ public class MultilevelCacheStore implements CacheStore {
         // 批量失效通知：计算公共前缀，优先发单条 prefix 消息
         String commonPrefix = findCommonPrefix(keys.stream().map(this::withPrefix).toList());
         if (commonPrefix != null) {
-            publishInvalidation(commonPrefix);
+            publishInvalidation(commonPrefix, "evict_prefix");
         } else {
-            keys.forEach(this::publishInvalidation);
+            keys.forEach(k -> publishInvalidation(k, "evict"));
         }
     }
 
     /**
      * 通过 Redis Pub/Sub 发布缓存失效通知。
      */
-    private void publishInvalidation(String key) {
+    private void publishInvalidation(String key, String type) {
         try {
             String channel = CacheConstants.INVALIDATION_CHANNEL_PREFIX + withPrefix(key);
-            stringRedisTemplate.convertAndSend(channel, "evict");
-            log.debug("Published cache invalidation: channel={}", channel);
+            stringRedisTemplate.convertAndSend(channel, type);
+            log.debug("Published cache invalidation: channel={}, type={}", channel, type);
         } catch (Exception e) {
             // Pub/Sub 失败不阻塞主流程
-            log.warn("Failed to publish cache invalidation for key: {}", withPrefix(key), e);
+            log.warn("Failed to publish cache invalidation for key: {}, type: {}", withPrefix(key), type, e);
         }
     }
 

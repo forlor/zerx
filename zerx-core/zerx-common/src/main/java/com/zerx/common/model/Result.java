@@ -1,8 +1,8 @@
 package com.zerx.common.model;
 
-import com.zerx.common.exception.ErrorCode;
-
 import java.io.Serializable;
+
+import com.zerx.common.exception.ErrorCode;
 
 /**
  * 统一响应结构体

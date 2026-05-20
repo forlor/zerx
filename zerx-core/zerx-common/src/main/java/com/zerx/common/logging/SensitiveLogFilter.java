@@ -1,16 +1,13 @@
 package com.zerx.common.logging;
 
-import com.zerx.common.util.SensitiveDataUtil;
-
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.zerx.common.util.SensitiveDataUtil;
 
 /**
  * 日志敏感数据过滤器

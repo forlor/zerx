@@ -1,6 +1,7 @@
 package com.zerx.spring.web.client.interceptor;
 
-import com.zerx.spring.web.context.RequestContext;
+import java.io.IOException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpRequest;
@@ -8,7 +9,7 @@ import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 
-import java.io.IOException;
+import com.zerx.spring.web.context.RequestContext;
 
 /**
  * 链路追踪透传拦截器
@@ -29,7 +30,7 @@ import java.io.IOException;
  */
 public class TracePropagationInterceptor implements ClientHttpRequestInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(TracePropagationInterceptor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TracePropagationInterceptor.class);
 
     /** 链路追踪 Header 名称 */
     static final String TRACE_ID_HEADER = "X-Trace-Id";
@@ -42,8 +43,8 @@ public class TracePropagationInterceptor implements ClientHttpRequestInterceptor
             if (!request.getHeaders().containsKey(TRACE_ID_HEADER)) {
                 request.getHeaders().add(TRACE_ID_HEADER, traceId);
             }
-            if (log.isTraceEnabled()) {
-                log.trace("Propagating traceId={} to {}", traceId, request.getURI());
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Propagating traceId={} to {}", traceId, request.getURI());
             }
         }
         return execution.execute(request, body);

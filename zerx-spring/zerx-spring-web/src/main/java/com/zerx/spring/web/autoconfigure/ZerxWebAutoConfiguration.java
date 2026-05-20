@@ -1,14 +1,5 @@
 package com.zerx.spring.web.autoconfigure;
 
-import com.zerx.common.logging.OpLogContextExtractor;
-import com.zerx.spring.web.advise.GlobalExceptionHandler;
-import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
-import com.zerx.spring.web.config.JacksonAutoConfiguration;
-import com.zerx.spring.web.config.ZerxCorsAutoConfiguration;
-import com.zerx.spring.web.filter.AccessLogFilter;
-import com.zerx.spring.web.filter.TraceFilter;
-import com.zerx.spring.web.interceptor.RequestContextInterceptor;
-import com.zerx.spring.web.properties.ZerxWebProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -19,6 +10,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import com.zerx.common.logging.OpLogContextExtractor;
+import com.zerx.spring.web.advise.GlobalExceptionHandler;
+import com.zerx.spring.web.advise.ZerxResponseBodyAdvice;
+import com.zerx.spring.web.config.ZerxCorsAutoConfiguration;
+import com.zerx.spring.web.filter.AccessLogFilter;
+import com.zerx.spring.web.filter.TraceFilter;
+import com.zerx.spring.web.interceptor.RequestContextInterceptor;
+import com.zerx.spring.web.properties.ZerxWebProperties;
 
 /**
  * Zerx Web 模块自动配置

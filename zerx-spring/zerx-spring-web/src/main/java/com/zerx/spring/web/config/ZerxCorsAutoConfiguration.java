@@ -1,6 +1,5 @@
 package com.zerx.spring.web.config;
 
-import com.zerx.spring.web.properties.ZerxWebProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -8,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+
+import com.zerx.spring.web.properties.ZerxWebProperties;
 
 /**
  * CORS 跨域自动配置

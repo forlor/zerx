@@ -1,7 +1,5 @@
 package com.zerx.common.event;
 
-import java.time.Instant;
-import java.util.EventListener;
 import java.util.function.Consumer;
 
 /**
@@ -13,20 +11,15 @@ import java.util.function.Consumer;
  * <h3>使用示例：</h3>
  * <pre>{@code
  * // 方式一：实现接口
- * public class OrderEventListener implements DomainEventListener&lt;OrderCreatedEvent&gt; {
- *     &#64;Override
- *     public String eventType() {
- *         return "OrderCreated";
- *     }
- *
- *     &#64;Override
+ * public class OrderCreatedListener implements DomainEventListener<OrderCreatedEvent> {
+ *     @Override
  *     public void onEvent(OrderCreatedEvent event) {
  *         // 处理订单创建事件
  *     }
  * }
  *
  * // 方式二：使用 Consumer（适合简单场景）
- * Consumer&lt;OrderCreatedEvent&gt; handler = event -&gt; System.out.println(event);
+ * Consumer&lt;OrderCreatedEvent&gt; handler = event -&gt; log.info(event.toString());
  * </pre>
  *
  * @param <T> 事件类型

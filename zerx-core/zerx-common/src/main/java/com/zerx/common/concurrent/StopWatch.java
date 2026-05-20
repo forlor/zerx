@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  * watch.split("数据查询");
  * // ... 更多逻辑 ...
  * watch.stop();
- * System.out.println(watch); // 输出分段耗时和总耗时
+ * log.info(watch.toString()); // 输出分段耗时和总耗时
  * }</pre>
  *
  * @author zerx
