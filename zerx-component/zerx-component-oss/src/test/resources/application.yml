@@ -1,0 +1,13 @@
+zerx:
+  oss:
+    enabled: true
+    type: minio
+    endpoint: http://localhost:9000
+    access-key: test-access-key
+    secret-key: test-secret-key
+    bucket: test-bucket
+    base-path: uploads
+    staging:
+      mode: PREFIX
+      prefix: _staging/
+      default-ttl: 24h

@@ -70,6 +70,14 @@
                 <artifactId>zerx-spring-logging</artifactId>
                 <version>${zerx.version}</version>
             </dependency>
+
+            <!-- ======================== zerx-component 业务组件层模块 ======================== -->
+
+            <dependency>
+                <groupId>com.zerx</groupId>
+                <artifactId>zerx-component-oss</artifactId>
+                <version>${zerx.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>
