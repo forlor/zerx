@@ -128,8 +128,8 @@ zerx-component-oss
    ▼
 2. 后端 presignStage()
    ├─ stageToken = UUID
-   ├─ stagingKey = _staging/{stageToken}
-   ├─ presignedUrl (PUT, 带 metadata header)
+   ├─ stagingKey = {prefix}{stageToken} (DIRECTORY) 或 {stageToken} (BUCKET)
+   ├─ presignedUrl (PUT, 在暂存桶上生成, 带 metadata header)
    │   x-amz-meta-zerx-filename = 合同.pdf
    │   x-amz-meta-zerx-basepath = uploads/
    └─ 返回 OssStageResult(stageToken, presignedUrl)
@@ -145,10 +145,10 @@ zerx-component-oss
    │
    ▼
 5. 后端 confirm(stageToken) + 保存业务数据（同一事务）
-   ├─ HEAD _staging/{stageToken} → 读回 filename, basePath
+   ├─ HEAD 暂存桶/{stagingKey} → 读回 filename, basePath
    ├─ generateObjectKey(basePath, ext) → uploads/2026/05/21/uuid.pdf
-   ├─ copy(_staging/uuid, uploads/2026/05/21/uuid.pdf)
-   └─ delete(_staging/uuid)
+   ├─ copy(暂存桶→主桶, stagingKey, uploads/2026/05/21/uuid.pdf)
+   └─ delete(暂存桶, stagingKey)
    │
    ▼
 6. 定时清理（每日）
@@ -156,23 +156,27 @@ zerx-component-oss
    → 扫描 _staging/ 下超过 1 天的文件，批量删除
 ```
 
-### 3.3 暂存级别配置
+### 3.3 暂存策略配置
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  staging.bucket 未配置 → 目录级别暂存（同桶）                 │
+│  strategy: DIRECTORY（默认）→ 目录级别暂存（同桶）             │
 │                                                             │
 │  zerx 桶:                                                  │
 │  ├── uploads/2026/05/21/uuid.pdf     ← 最终文件             │
 │  ├── uploads/2026/05/21/uuid2.pdf    ← 最终文件             │
-│  └── _staging/a1b2c3d4/              ← 暂存文件             │
-│      └── _staging/e5f6g7h8/          ← 暂存文件             │
+│  └── _staging/a1b2c3d4-e5f6...       ← 暂存文件             │
+│      └── _staging/...                ← 暂存文件             │
 │                                                             │
-│  staging.bucket = "zerx-staging" → 桶级别暂存（跨桶）         │
+│  strategy: BUCKET → 桶级别暂存（跨桶，物理隔离）               │
 │                                                             │
 │  zerx 桶:                     zerx-staging 桶:              │
-│  ├── uploads/2026/05/21/uuid.pdf  ├── a1b2c3d4/  ← 暂存    │
-│  └── uploads/2026/05/21/uuid2.pdf └── e5f6g7h8/  ← 暂存    │
+│  ├── uploads/2026/05/21/uuid.pdf  ├── a1b2c3d4-e5f6...      │
+│  └── uploads/2026/05/21/uuid2.pdf └── ...                   │
+│                                                             │
+│  confirm 流程:                                              │
+│  DIRECTORY: _staging/{uuid} → uploads/.../uuid.pdf (copy+del)│
+│  BUCKET:    zerx-staging/{uuid} → zerx/uploads/.../uuid.pdf │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -209,18 +213,27 @@ zerx-component-oss
 | 方法 | 说明 |
 |------|------|
 | `generateObjectKey(extension)` | `{basePath}/{yyyy/MM/dd}/{uuid}.{ext}` |
-| `resolveBucket()` | 暂存桶（如配置）或主桶 |
+| `resolveStagingBucket()` | 根据策略返回暂存桶（DIRECTORY=主桶，BUCKET=独立桶） |
 | `buildUrl(objectKey)` | customDomain 或 endpoint+bucket 拼接 |
 | `presignStage/confirm/cancel` | 预上传暂存的完整生命周期管理 |
-| 13 个抽象 `do*` 方法 | 每个实现类按厂商 SDK 实现 |
+| 12 个抽象 `do*` 方法 | 每个实现类按厂商 SDK 实现，所有方法接收 `bucket` 参数 |
+| `doPresignPut(key, expiry, headers, bucket)` | 指定桶的预签名上传（暂存桶直传） |
+| `doPurgeExpired(bucket, prefix, cutoff)` | 按桶+前缀清理过期暂存文件 |
 
 ### 4.3 stageToken 设计
 
 stageToken 使用纯 UUID，简洁无编码：
 
 ```
-stageToken = UUID.randomUUID()           → "a1b2c3d4-..."
-stagingKey = "_staging/" + stageToken    → "_staging/a1b2c3d4-..."
+stageToken = UUID
+
+# DIRECTORY 模式
+stagingKey = "{prefix}{stageToken}"       → "_staging/a1b2c3d4-..."
+stagingBucket = 主桶名
+
+# BUCKET 模式
+stagingKey = stageToken                     → "a1b2c3d4-..."
+stagingBucket = "{主桶名}-staging" (可自定义)
 ```
 
 暂存元数据（原始文件名、目标 basePath）存入对象自定义 Header：
@@ -267,8 +280,9 @@ zerx:
     custom-domain: https://oss.example.com
     auto-create-bucket: true
     staging:
-      bucket: zerx-staging          # 桶级别暂存（可选，不配则目录级别）
-      prefix: _staging/
+      strategy: DIRECTORY              # DIRECTORY（同桶目录）| BUCKET（独立桶）
+      bucket: zerx-staging           # BUCKET 模式的暂存桶名（可选，默认 {主桶}-staging）
+      prefix: _staging/              # DIRECTORY 模式的暂存目录前缀
       default-ttl: 24h
 
 # 阿里云 OSS
@@ -346,8 +360,9 @@ try (OssObject obj = ossService.get("uploads/2026/05/21/uuid.pdf")) {
 | 上传仅保留 InputStream | 统一接口签名，size/contentType 上传后从存储获取 |
 | objectKey 自动生成 | 业务不关心存储路径，由组件按 `{basePath}/{yyyy/MM/dd}/{uuid}.{ext}` 规范管理 |
 | 原始文件名存入元数据 | objectKey 不可变，原始文件名通过 `x-amz-meta-zerx-filename` 保留 |
-| stageToken = UUID | 简洁无编码，暂存路径可直接推导（`_staging/{token}`） |
+| stageToken = UUID | 简洁无编码，暂存路径可通过策略推导 |
 | 暂存元数据存对象 Header | 无需数据库，HEAD 请求即可读回，天然跨桶兼容 |
-| 桶级别 + 目录级别暂存 | 桶级别更干净（隔离+清理安全），目录级别更轻量（同桶 copy） |
+| strategy 策略模式 | DIRECTORY（同桶目录，轻量）和 BUCKET（独立桶，物理隔离）两种策略 |
+| do* 方法统一接收 bucket | 模板层统一编排桶路由，子类专注 SDK 调用，不再需要 key-based 桶推断 |
 | 所有厂商 SDK optional | 按需引入，不需要 OSS 的项目零额外依赖 |
 | 不依赖 zerx-spring-data | 组件层保持独立性，不引入数据库依赖 |

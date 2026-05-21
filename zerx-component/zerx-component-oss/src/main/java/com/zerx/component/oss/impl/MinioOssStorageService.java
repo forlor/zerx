@@ -34,11 +34,13 @@ import java.util.Map;
  *   <li>JDK 21+</li>
  * </ul>
  *
- * <h3>存储桶选择策略：</h3>
+ * <h3>暂存策略：</h3>
  * <p>
- * 如果配置了独立的暂存桶（{@code zerx.oss.staging.bucket}），则以暂存前缀开头的对象键
- * （如 {@code _staging/xxx}）会被路由到暂存桶，其余操作使用主存储桶。
- * 未配置暂存桶时，所有对象存储在主存储桶中，通过目录前缀区分暂存与正式文件。
+ * 支持两种暂存隔离策略（通过 {@code zerx.oss.staging.strategy} 配置）：
+ * <ul>
+ *   <li><b>DIRECTORY</b>（默认）：同桶目录隔离，暂存文件在主桶的 {@code _staging/} 前缀下</li>
+ *   <li><b>BUCKET</b>：独立桶隔离，暂存文件存放在独立的暂存桶中</li>
+ * </ul>
  * </p>
  *
  * <h3>元数据处理：</h3>
@@ -100,29 +102,14 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 上传 ========================
 
-    /**
-     * 上传对象到 MinIO 存储。
-     * <p>
-     * 使用 {@link MinioClient#putObject(PutObjectArgs)} 上传文件流。
-     * 上传完成后通过 {@code statObject} 获取完整的对象元数据（大小、最后修改时间等），
-     * ETag 从上传响应中提取。
-     * </p>
-     *
-     * @param objectKey   对象键
-     * @param input       文件内容输入流
-     * @param contentType MIME 类型，可能为 {@code null}
-     * @param metadata    自定义元数据（键已包含 {@code x-amz-meta-} 前缀）
-     * @return 上传结果
-     * @throws OssException 上传失败时抛出
-     */
     @Override
-    protected OssResult doPut(String objectKey, InputStream input, String contentType,
+    protected OssResult doPut(String bucket, String objectKey, InputStream input, String contentType,
                               Map<String, String> metadata) {
         try {
             Map<String, String> userMetadata = stripMetaPrefix(metadata);
 
             PutObjectArgs.Builder builder = PutObjectArgs.builder()
-                    .bucket(resolveBucket(objectKey))
+                    .bucket(bucket)
                     .object(objectKey)
                     .stream(input, -1, MIN_PART_SIZE)
                     .userMetadata(userMetadata);
@@ -133,10 +120,9 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
             ObjectWriteResponse response = minioClient.putObject(builder.build());
 
-            // Stat 以获取完整的元数据（size、lastModified 等）
             StatObjectResponse stat = minioClient.statObject(
                     StatObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
 
@@ -159,23 +145,12 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 元数据 ========================
 
-    /**
-     * 获取对象元数据。
-     * <p>
-     * 使用 {@link MinioClient#statObject(StatObjectArgs)} 获取对象的
-     * 大小、Content-Type、ETag、最后修改时间以及原始文件名（从用户元数据中提取）。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @return 对象元数据
-     * @throws OssException 对象不存在或获取元数据失败时抛出
-     */
     @Override
-    protected OssObjectMeta doGetObjectMeta(String objectKey) {
+    protected OssObjectMeta doGetObjectMeta(String bucket, String objectKey) {
         try {
             StatObjectResponse stat = minioClient.statObject(
                     StatObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
 
@@ -195,23 +170,12 @@ public class MinioOssStorageService extends AbstractOssStorageService {
         }
     }
 
-    /**
-     * 获取对象内容和元数据。
-     * <p>
-     * 先通过 {@code statObject} 获取元数据，再通过 {@link MinioClient#getObject(GetObjectArgs)}
-     * 获取内容流。返回的 {@link OssObject} 持有底层 HTTP 连接，调用方必须在使用后关闭。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @return 包含输入流和元数据的对象，调用方必须关闭
-     * @throws OssException 对象不存在或获取失败时抛出
-     */
     @Override
-    protected OssObject doGet(String objectKey) {
+    protected OssObject doGet(String bucket, String objectKey) {
         try {
             StatObjectResponse stat = minioClient.statObject(
                     StatObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
 
@@ -229,7 +193,7 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
             GetObjectResponse response = minioClient.getObject(
                     GetObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
 
@@ -241,22 +205,12 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 存在性检查 ========================
 
-    /**
-     * 判断对象是否存在。
-     * <p>
-     * 通过 {@link MinioClient#statObject(StatObjectArgs)} 检测对象是否存在：
-     * 无异常抛出则表示对象存在，捕获异常则返回 {@code false}。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @return 存在返回 {@code true}
-     */
     @Override
-    protected boolean doExists(String objectKey) {
+    protected boolean doExists(String bucket, String objectKey) {
         try {
             minioClient.statObject(
                     StatObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
             return true;
@@ -267,22 +221,12 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 删除 ========================
 
-    /**
-     * 删除单个对象。
-     * <p>
-     * 使用 {@link MinioClient#removeObject(RemoveObjectArgs)} 删除对象。
-     * 删除不存在的对象不会抛出异常（幂等操作）。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @throws OssException 删除过程中发生 I/O 或权限错误时抛出
-     */
     @Override
-    protected void doDelete(String objectKey) {
+    protected void doDelete(String bucket, String objectKey) {
         try {
             minioClient.removeObject(
                     RemoveObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
         } catch (Exception e) {
@@ -290,60 +234,35 @@ public class MinioOssStorageService extends AbstractOssStorageService {
         }
     }
 
-    /**
-     * 批量删除对象。
-     * <p>
-     * 使用 {@link MinioClient#removeObjects(RemoveObjectsArgs)} 批量删除。
-     * MinIO 的批量删除 API 仅返回失败的结果（{@link DeleteError}），
-     * 因此成功删除数 = 总数 - 失败数。
-     * </p>
-     *
-     * @param objectKeys 对象键列表
-     * @return 实际成功删除的数量
-     * @throws OssException 批量删除过程中发生严重错误时抛出
-     */
     @Override
-    protected int doDeleteBatch(List<String> objectKeys) {
+    protected int doDeleteBatch(String bucket, List<String> objectKeys) {
         if (objectKeys == null || objectKeys.isEmpty()) {
             return 0;
         }
 
         try {
-            // 按存储桶分组批量删除
-            Map<String, List<DeleteObject>> bucketGroups = new HashMap<>();
-
+            List<DeleteObject> deleteObjects = new ArrayList<>(objectKeys.size());
             for (String objectKey : objectKeys) {
-                String bucket = resolveBucket(objectKey);
-                bucketGroups.computeIfAbsent(bucket, k -> new ArrayList<>())
-                        .add(new DeleteObject(objectKey));
+                deleteObjects.add(new DeleteObject(objectKey));
             }
 
-            int totalDeleted = 0;
+            Iterable<Result<DeleteError>> results = minioClient.removeObjects(
+                    RemoveObjectsArgs.builder()
+                            .bucket(bucket)
+                            .objects(deleteObjects)
+                            .build());
 
-            for (Map.Entry<String, List<DeleteObject>> entry : bucketGroups.entrySet()) {
-                String bucket = entry.getKey();
-                List<DeleteObject> deleteObjects = entry.getValue();
-
-                Iterable<Result<DeleteError>> results = minioClient.removeObjects(
-                        RemoveObjectsArgs.builder()
-                                .bucket(bucket)
-                                .objects(deleteObjects)
-                                .build());
-
-                int errorCount = 0;
-                for (Result<DeleteError> result : results) {
-                    try {
-                        result.get();
-                        errorCount++;
-                    } catch (Exception e) {
-                        errorCount++;
-                    }
+            int errorCount = 0;
+            for (Result<DeleteError> result : results) {
+                try {
+                    result.get();
+                    errorCount++;
+                } catch (Exception e) {
+                    errorCount++;
                 }
-
-                totalDeleted += deleteObjects.size() - errorCount;
             }
 
-            return totalDeleted;
+            return deleteObjects.size() - errorCount;
         } catch (Exception e) {
             throw OssException.ossError("批量删除对象失败", e);
         }
@@ -351,25 +270,9 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 复制 ========================
 
-    /**
-     * 复制对象。
-     * <p>
-     * 使用 {@link MinioClient#copyObject(CopyObjectArgs)} 将对象从源路径复制到目标路径。
-     * 复制完成后通过 {@code statObject} 获取目标对象的完整元数据以构建结果。
-     * 支持跨存储桶复制（源与目标可能在不同的存储桶中）。
-     * </p>
-     *
-     * @param sourceKey 源对象键
-     * @param targetKey 目标对象键
-     * @return 复制结果，包含目标对象的路径、URL 和元数据
-     * @throws OssException 源对象不存在或复制失败时抛出
-     */
     @Override
-    protected OssResult doCopy(String sourceKey, String targetKey) {
+    protected OssResult doCopy(String sourceBucket, String sourceKey, String targetBucket, String targetKey) {
         try {
-            String sourceBucket = resolveBucket(sourceKey);
-            String targetBucket = resolveBucket(targetKey);
-
             minioClient.copyObject(
                     CopyObjectArgs.builder()
                             .source(CopySource.builder()
@@ -380,7 +283,6 @@ public class MinioOssStorageService extends AbstractOssStorageService {
                             .object(targetKey)
                             .build());
 
-            // Stat 目标对象以获取完整元数据
             StatObjectResponse stat = minioClient.statObject(
                     StatObjectArgs.builder()
                             .bucket(targetBucket)
@@ -406,27 +308,18 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 预签名 ========================
 
-    /**
-     * 生成预签名上传 URL。
-     * <p>
-     * 使用 {@link MinioClient#getPresignedObjectUrl(GetPresignedObjectUrlArgs)} 生成
-     * 带签名的 PUT URL。客户端必须在上传时携带 {@code headers} 中指定的请求头，
-     * 否则签名校验将失败。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @param expiry    有效期
-     * @param headers   客户端必须携带的请求头（键已包含 {@code x-amz-meta-} 前缀）
-     * @return 预签名 URL
-     * @throws OssException 生成预签名 URL 失败时抛出
-     */
+    @Override
+    protected PresignedUrl doPresignPut(String objectKey, Duration expiry, Map<String, String> headers) {
+        return doPresignPut(objectKey, expiry, headers, resolveMainBucket());
+    }
+
     @Override
     protected PresignedUrl doPresignPut(String objectKey, Duration expiry,
-                                        Map<String, String> headers) {
+                                        Map<String, String> headers, String bucket) {
         try {
             GetPresignedObjectUrlArgs.Builder builder = GetPresignedObjectUrlArgs.builder()
                     .method(Method.PUT)
-                    .bucket(resolveBucket(objectKey))
+                    .bucket(bucket)
                     .object(objectKey)
                     .expiry(Math.max(1, (int) expiry.getSeconds()));
 
@@ -443,25 +336,13 @@ public class MinioOssStorageService extends AbstractOssStorageService {
         }
     }
 
-    /**
-     * 生成预签名下载 URL。
-     * <p>
-     * 使用 {@link MinioClient#getPresignedObjectUrl(GetPresignedObjectUrlArgs)} 生成
-     * 带签名的 GET URL，客户端可直接通过此 URL 下载对象。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @param expiry    有效期
-     * @return 预签名 URL
-     * @throws OssException 生成预签名 URL 失败时抛出
-     */
     @Override
     protected PresignedUrl doPresignGet(String objectKey, Duration expiry) {
         try {
             String url = minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(resolveMainBucket())
                             .object(objectKey)
                             .expiry(Math.max(1, (int) expiry.getSeconds()))
                             .build());
@@ -476,16 +357,6 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== URL 构建 ========================
 
-    /**
-     * 构建对象的访问 URL。
-     * <p>
-     * 如果配置了自定义域名（{@code customDomain}），则使用自定义域名拼接对象键；
-     * 否则使用 {@code {endpoint}/{bucket}/{objectKey}} 格式构建。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @return 完整的访问 URL
-     */
     @Override
     protected String doBuildUrl(String objectKey) {
         String customDomain = properties.getCustomDomain();
@@ -498,42 +369,14 @@ public class MinioOssStorageService extends AbstractOssStorageService {
         return endpoint + "/" + properties.getBucket() + "/" + objectKey;
     }
 
-    // ======================== 存储桶解析 ========================
-
-    /**
-     * 获取暂存存储桶名称。
-     * <p>
-     * 如果配置了独立的暂存桶则返回暂存桶名称，否则返回主存储桶名称。
-     * </p>
-     *
-     * @return 暂存存储桶名称
-     */
-    @Override
-    protected String doGetStagingBucket() {
-        String stagingBucket = properties.getStaging().getBucket();
-        return StringUtil.isNotBlank(stagingBucket) ? stagingBucket : properties.getBucket();
-    }
-
     // ======================== 用户元数据 ========================
 
-    /**
-     * 获取对象的自定义元数据（用户元数据）。
-     * <p>
-     * 通过 {@code statObject} 读取对象的用户元数据，并将 MinIO SDK 返回的
-     * 不含 {@code x-amz-meta-} 前缀的键转换为带前缀的格式，以与基类的
-     * {@link #META_FILENAME}、{@link #META_BASEPATH} 等常量保持一致。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @return 用户元数据映射（键含 {@code x-amz-meta-} 前缀），无元数据时返回空 Map
-     * @throws OssException 获取元数据失败时抛出
-     */
     @Override
-    protected Map<String, String> doGetUserMetadata(String objectKey) {
+    protected Map<String, String> doGetUserMetadata(String bucket, String objectKey) {
         try {
             StatObjectResponse stat = minioClient.statObject(
                     StatObjectArgs.builder()
-                            .bucket(resolveBucket(objectKey))
+                            .bucket(bucket)
                             .object(objectKey)
                             .build());
 
@@ -546,28 +389,9 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     // ======================== 过期暂存清理 ========================
 
-    /**
-     * 清理过期的暂存文件。
-     * <p>
-     * 扫描暂存存储桶中暂存前缀下的所有对象，筛选出最后修改时间早于
-     * {@code now - olderThan} 的过期文件，然后批量删除。
-     * </p>
-     * <p>
-     * 适用于定时任务定期清理未确认的过期暂存文件，释放存储空间。
-     * </p>
-     *
-     * @param olderThan 清理阈值，删除最后修改时间早于此阈值的暂存文件
-     * @return 实际清理的暂存文件数量
-     * @throws OssException 批量删除过程中发生严重错误时抛出
-     */
     @Override
-    public int purgeExpiredStages(Duration olderThan) {
+    protected int doPurgeExpired(String bucket, String prefix, Instant cutoff) {
         try {
-            String bucket = doGetStagingBucket();
-            String prefix = properties.getStaging().getPrefix();
-            Instant cutoff = Instant.now().minus(olderThan);
-
-            // 列出暂存前缀下的所有对象
             Iterable<Result<Item>> results = minioClient.listObjects(
                     ListObjectsArgs.builder()
                             .bucket(bucket)
@@ -593,7 +417,6 @@ public class MinioOssStorageService extends AbstractOssStorageService {
                 return 0;
             }
 
-            // 批量删除过期暂存文件
             Iterable<Result<DeleteError>> deleteResults = minioClient.removeObjects(
                     RemoveObjectsArgs.builder()
                             .bucket(bucket)
@@ -619,33 +442,7 @@ public class MinioOssStorageService extends AbstractOssStorageService {
     // ======================== 内部工具方法 ========================
 
     /**
-     * 根据对象键解析目标存储桶。
-     * <p>
-     * 如果配置了独立的暂存桶，且对象键以暂存前缀开头，则返回暂存桶；
-     * 否则返回主存储桶。
-     * </p>
-     *
-     * @param objectKey 对象键
-     * @return 目标存储桶名称
-     */
-    private String resolveBucket(String objectKey) {
-        String stagingBucket = properties.getStaging().getBucket();
-        String stagingPrefix = properties.getStaging().getPrefix();
-
-        if (StringUtil.isNotBlank(stagingBucket)
-                && objectKey != null
-                && objectKey.startsWith(stagingPrefix)) {
-            return stagingBucket;
-        }
-        return properties.getBucket();
-    }
-
-    /**
      * 从用户元数据中提取原始文件名。
-     * <p>
-     * MinIO SDK 返回的用户元数据键不含 {@code x-amz-meta-} 前缀。
-     * 本方法查找 {@code "zerx-filename"} 键对应的值。
-     * </p>
      *
      * @param userMetadata MinIO 返回的用户元数据（键不含前缀）
      * @return 原始文件名，未设置时返回 {@code null}
@@ -659,13 +456,8 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     /**
      * 去除元数据键的 {@code x-amz-meta-} 前缀。
-     * <p>
-     * 基类传递的元数据键包含 {@code x-amz-meta-} 前缀（如 {@code "x-amz-meta-zerx-filename"}），
-     * 而 MinIO SDK 的 {@code userMetadata()} 方法会自动添加该前缀。
-     * 因此在写入前需去除前缀以避免重复（如 {@code "x-amz-meta-x-amz-meta-zerx-filename"}）。
-     * </p>
      *
-     * @param metadata 原始元数据映射（键含 {@code x-amz-meta-} 前缀），可为 {@code null}
+     * @param metadata 原始元数据映射（键含前缀），可为 {@code null}
      * @return 去除前缀后的元数据映射
      */
     private Map<String, String> stripMetaPrefix(Map<String, String> metadata) {
@@ -686,11 +478,6 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     /**
      * 为元数据键添加 {@code x-amz-meta-} 前缀。
-     * <p>
-     * MinIO SDK 读取的用户元数据键不含 {@code x-amz-meta-} 前缀，
-     * 而基类的 {@link #META_FILENAME}、{@link #META_BASEPATH} 等常量使用带前缀的完整键名。
-     * 因此在返回给基类前需添加前缀。
-     * </p>
      *
      * @param userMetadata MinIO 返回的用户元数据（键不含前缀），可为 {@code null}
      * @return 添加前缀后的元数据映射
@@ -713,21 +500,12 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     /**
      * 去除 MinIO ETag 值的首尾双引号。
-     * <p>
-     * MinIO 返回的 ETag 通常为 {@code "d41d8cd98f00b204e9800998ecf8427e"}（含引号），
-     * 去除引号后保持与其他 OSS 实现的兼容性。
-     * </p>
-     *
-     * @param etag MinIO 原始 ETag 值
-     * @return 去除首尾引号后的 ETag
      */
     private String stripQuotes(String etag) {
         if (etag == null) {
             return null;
         }
-        if (etag.length() >= 2
-                && etag.startsWith("\"")
-                && etag.endsWith("\"")) {
+        if (etag.length() >= 2 && etag.startsWith("\"") && etag.endsWith("\"")) {
             return etag.substring(1, etag.length() - 1);
         }
         return etag;
@@ -735,9 +513,6 @@ public class MinioOssStorageService extends AbstractOssStorageService {
 
     /**
      * 移除字符串末尾的斜杠。
-     *
-     * @param value 原始字符串
-     * @return 去除末尾斜杠后的字符串
      */
     private String stripTrailingSlash(String value) {
         if (value != null && value.endsWith("/")) {

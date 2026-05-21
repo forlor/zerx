@@ -4,15 +4,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.zerx.common.util.StringUtil;
+import com.zerx.component.oss.OssObject;
+import com.zerx.component.oss.OssObjectMeta;
+import com.zerx.component.oss.OssResult;
+import com.zerx.component.oss.PresignedUrl;
 import com.zerx.component.oss.properties.ZerxOssProperties;
+
+import java.io.InputStream;
 
 /**
  * {@link AbstractOssStorageService} 单元测试
@@ -96,10 +104,39 @@ class AbstractOssStorageServiceTest {
     }
 
     @Test
-    @DisplayName("resolveStagingKey 格式正确")
-    void shouldResolveStagingKey() {
-        String key = service.testResolveStagingKey("token-123");
-        assertEquals("_staging/token-123", key);
+    @DisplayName("resolveStagingBucket DIRECTORY 模式返回主桶")
+    void shouldResolveStagingBucket_to_main_in_directory_mode() {
+        assertEquals("my-bucket", service.testResolveStagingBucket());
+    }
+
+    @Test
+    @DisplayName("resolveStagingBucket BUCKET 模式返回暂存桶")
+    void shouldResolveStagingBucket_to_staging_in_bucket_mode() {
+        props.getStaging().setStrategy(ZerxOssProperties.Staging.Strategy.BUCKET);
+        props.getStaging().setBucket("my-staging");
+        assertEquals("my-staging", service.testResolveStagingBucket());
+    }
+
+    @Test
+    @DisplayName("resolveStagingBucket BUCKET 模式自动生成暂存桶名")
+    void shouldResolveStagingBucket_auto_generate() {
+        props.getStaging().setStrategy(ZerxOssProperties.Staging.Strategy.BUCKET);
+        assertEquals("my-bucket-staging", service.testResolveStagingBucket());
+    }
+
+    @Test
+    @DisplayName("resolveStagingKey DIRECTORY 模式加前缀")
+    void shouldResolveStagingKey_with_prefix() {
+        assertEquals("_staging/token-123",
+                props.getStaging().resolveStagingKey("token-123"));
+    }
+
+    @Test
+    @DisplayName("resolveStagingKey BUCKET 模式直接返回 token")
+    void shouldResolveStagingKey_without_prefix_in_bucket_mode() {
+        props.getStaging().setStrategy(ZerxOssProperties.Staging.Strategy.BUCKET);
+        assertEquals("token-123",
+                props.getStaging().resolveStagingKey("token-123"));
     }
 
     @Test
@@ -139,8 +176,8 @@ class AbstractOssStorageServiceTest {
             return buildUrl(objectKey);
         }
 
-        String testResolveStagingKey(String stageToken) {
-            return resolveStagingKey(stageToken);
+        String testResolveStagingBucket() {
+            return resolveStagingBucket();
         }
 
         String testExtractExtension(String filename) {
@@ -156,43 +193,44 @@ class AbstractOssStorageServiceTest {
         }
 
         @Override
-        protected OssResult doPut(String objectKey, java.io.InputStream input,
-                                   String contentType, java.util.Map<String, String> metadata) {
+        protected OssResult doPut(String bucket, String objectKey, InputStream input,
+                                   String contentType, Map<String, String> metadata) {
             return null;
         }
 
         @Override
-        protected OssObjectMeta doGetObjectMeta(String objectKey) {
+        protected OssObjectMeta doGetObjectMeta(String bucket, String objectKey) {
             return null;
         }
 
         @Override
-        protected OssObject doGet(String objectKey) {
+        protected OssObject doGet(String bucket, String objectKey) {
             return null;
         }
 
         @Override
-        protected boolean doExists(String objectKey) {
+        protected boolean doExists(String bucket, String objectKey) {
             return false;
         }
 
         @Override
-        protected void doDelete(String objectKey) {
+        protected void doDelete(String bucket, String objectKey) {
         }
 
         @Override
-        protected int doDeleteBatch(java.util.List<String> objectKeys) {
+        protected int doDeleteBatch(String bucket, List<String> objectKeys) {
             return 0;
         }
 
         @Override
-        protected OssResult doCopy(String sourceKey, String targetKey) {
+        protected OssResult doCopy(String sourceBucket, String sourceKey,
+                                   String targetBucket, String targetKey) {
             return null;
         }
 
         @Override
         protected PresignedUrl doPresignPut(String objectKey, java.time.Duration expiry,
-                                              java.util.Map<String, String> headers) {
+                                              Map<String, String> headers) {
             return null;
         }
 
@@ -207,13 +245,13 @@ class AbstractOssStorageServiceTest {
         }
 
         @Override
-        protected String doGetStagingBucket() {
-            return properties.getBucket();
+        protected Map<String, String> doGetUserMetadata(String bucket, String objectKey) {
+            return Map.of();
         }
 
         @Override
-        protected java.util.Map<String, String> doGetUserMetadata(String objectKey) {
-            return java.util.Map.of();
+        protected int doPurgeExpired(String bucket, String prefix, Instant cutoff) {
+            return 0;
         }
     }
 }

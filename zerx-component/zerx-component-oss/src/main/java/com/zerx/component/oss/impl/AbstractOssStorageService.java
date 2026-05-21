@@ -46,6 +46,13 @@ import java.util.Map;
  * </pre>
  *
  * <h3>暂存流程：</h3>
+ * <p>
+ * 暂存支持两种隔离策略（通过 {@code zerx.oss.staging.strategy} 配置）：
+ * </p>
+ * <ul>
+ *   <li><b>DIRECTORY（默认）</b>：暂存文件存放在主桶的指定前缀目录下（如 {@code _staging/{uuid}}）</li>
+ *   <li><b>BUCKET</b>：暂存文件存放在独立的暂存桶中（如 {@code my-bucket-staging/{uuid}}）</li>
+ * </ul>
  * <ol>
  *   <li>客户端调用 {@link #presignStage(OssStageRequest)} 获取预签名 URL 和 stageToken</li>
  *   <li>客户端使用预签名 URL 上传文件到暂存区</li>
@@ -122,16 +129,28 @@ public abstract class AbstractOssStorageService implements OssStorageService {
     // ======================== 存储桶与路径解析 ========================
 
     /**
-     * 解析当前应使用的存储桶。
+     * 解析主存储桶名称。
+     *
+     * @return 主存储桶名称
+     */
+    protected String resolveMainBucket() {
+        return properties.getBucket();
+    }
+
+    /**
+     * 解析暂存存储桶名称。
      * <p>
-     * 如果配置了暂存桶则返回暂存桶名称，否则返回主存储桶名称。
+     * 根据暂存策略返回：
+     * <ul>
+     *   <li>{@link ZerxOssProperties.Staging.Strategy#DIRECTORY}：返回主存储桶</li>
+     *   <li>{@link ZerxOssProperties.Staging.Strategy#BUCKET}：返回独立暂存桶名</li>
+     * </ul>
      * </p>
      *
-     * @return 存储桶名称
+     * @return 暂存存储桶名称
      */
-    protected String resolveBucket() {
-        String stagingBucket = properties.getStaging().getBucket();
-        return StringUtil.isNotBlank(stagingBucket) ? stagingBucket : properties.getBucket();
+    protected String resolveStagingBucket() {
+        return properties.getStaging().resolveBucket(properties.getBucket());
     }
 
     /**
@@ -139,6 +158,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      * <p>
      * 如果配置了自定义域名（{@code customDomain}），则使用自定义域名拼接；
      * 否则使用 {@code endpoint}/{bucket}/{objectKey} 格式构建。
+     * 正式对象的 URL 始终基于主桶生成。
      * </p>
      *
      * @param objectKey 对象键
@@ -210,14 +230,18 @@ public abstract class AbstractOssStorageService implements OssStorageService {
     /**
      * {@inheritDoc}
      * <p>
-     * 生成暂存令牌（UUID），在暂存前缀下创建暂存键，并构建预签名 PUT URL。
-     * 原始文件名和基础路径通过自定义元数据头传递，客户端上传时需携带。
+     * 生成暂存令牌（UUID），根据暂存策略生成暂存键：
+     * <ul>
+     *   <li>DIRECTORY 模式：{@code {prefix}{stageToken}}（如 {@code _staging/550e8400-...}）</li>
+     *   <li>BUCKET 模式：直接使用 {@code stageToken}（独立桶中无需目录前缀）</li>
+     * </ul>
+     * 预签名 PUT URL 在暂存桶上生成。
      * </p>
      */
     @Override
     public OssStageResult presignStage(OssStageRequest request) {
         String stageToken = UuidUtil.fastUuidv7().toString();
-        String stagingKey = properties.getStaging().getPrefix() + stageToken;
+        String stagingKey = properties.getStaging().resolveStagingKey(stageToken);
 
         Duration ttl = request.ttl() != null ? request.ttl() : properties.getStaging().getDefaultTtl();
         String resolvedBasePath = resolveBasePath(request.basePath());
@@ -226,7 +250,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
         headers.put(META_FILENAME, request.filename());
         headers.put(META_BASEPATH, resolvedBasePath);
 
-        PresignedUrl presignedUrl = doPresignPut(stagingKey, ttl, headers);
+        PresignedUrl presignedUrl = doPresignPut(stagingKey, ttl, headers, resolveStagingBucket());
 
         return new OssStageResult(stageToken, presignedUrl, stagingKey);
     }
@@ -234,29 +258,32 @@ public abstract class AbstractOssStorageService implements OssStorageService {
     /**
      * {@inheritDoc}
      * <p>
-     * 从暂存区读取元数据（原始文件名、基础路径），生成最终对象键，
-     * 将文件复制到正式路径后删除暂存文件。
+     * 从暂存桶读取暂存对象的元数据（原始文件名、基础路径），
+     * 生成最终对象键后，将文件从暂存桶复制到主桶正式路径，最后删除暂存对象。
      * </p>
      */
     @Override
     public OssConfirmResult confirm(String stageToken) {
-        String stagingKey = properties.getStaging().getPrefix() + stageToken;
+        String stagingKey = properties.getStaging().resolveStagingKey(stageToken);
+        String stagingBucket = resolveStagingBucket();
+        String mainBucket = resolveMainBucket();
 
-        // 读取暂存对象的元数据
-        OssObjectMeta stagingMeta = doGetObjectMeta(stagingKey);
-        Map<String, String> userMetadata = doGetUserMetadata(stagingKey);
+        // 读取暂存对象的元数据（从暂存桶）
+        OssObjectMeta stagingMeta = doGetObjectMeta(stagingBucket, stagingKey);
+        Map<String, String> userMetadata = doGetUserMetadata(stagingBucket, stagingKey);
 
         String originalFilename = stagingMeta.originalFilename();
         String basePath = userMetadata != null ? userMetadata.get(META_BASEPATH) : null;
 
-        // 生成最终对象键并复制
+        // 生成最终对象键
         String extension = getExtension(originalFilename);
         String finalKey = generateObjectKey(basePath, extension);
 
-        OssResult copyResult = doCopy(stagingKey, finalKey);
+        // 跨桶复制：暂存桶 → 主桶
+        OssResult copyResult = doCopy(stagingBucket, stagingKey, mainBucket, finalKey);
 
         // 删除暂存对象
-        doDelete(stagingKey);
+        doDelete(stagingBucket, stagingKey);
 
         return new OssConfirmResult(
                 copyResult.objectKey(),
@@ -276,8 +303,9 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public void cancel(String stageToken) {
-        String stagingKey = properties.getStaging().getPrefix() + stageToken;
-        doDelete(stagingKey);
+        String stagingKey = properties.getStaging().resolveStagingKey(stageToken);
+        String stagingBucket = resolveStagingBucket();
+        doDelete(stagingBucket, stagingKey);
     }
 
     // ======================== 读取 ========================
@@ -287,7 +315,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public OssObjectMeta head(String objectKey) {
-        return doGetObjectMeta(objectKey);
+        return doGetObjectMeta(resolveMainBucket(), objectKey);
     }
 
     /**
@@ -295,7 +323,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public OssObject get(String objectKey) {
-        return doGet(objectKey);
+        return doGet(resolveMainBucket(), objectKey);
     }
 
     /**
@@ -322,7 +350,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public void download(String objectKey, OutputStream out) {
-        try (OssObject ossObject = doGet(objectKey)) {
+        try (OssObject ossObject = doGet(resolveMainBucket(), objectKey)) {
             ossObject.getInputStream().transferTo(out);
         } catch (IOException e) {
             throw OssException.ossError("下载对象失败: " + objectKey);
@@ -336,7 +364,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public boolean exists(String objectKey) {
-        return doExists(objectKey);
+        return doExists(resolveMainBucket(), objectKey);
     }
 
     /**
@@ -344,7 +372,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public void delete(String objectKey) {
-        doDelete(objectKey);
+        doDelete(resolveMainBucket(), objectKey);
     }
 
     /**
@@ -352,7 +380,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public int deleteBatch(List<String> objectKeys) {
-        return doDeleteBatch(objectKeys);
+        return doDeleteBatch(resolveMainBucket(), objectKeys);
     }
 
     /**
@@ -360,7 +388,7 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     @Override
     public OssResult copy(String sourceKey, String targetKey) {
-        return doCopy(sourceKey, targetKey);
+        return doCopy(resolveMainBucket(), sourceKey, resolveMainBucket(), targetKey);
     }
 
     // ======================== 抽象方法（子类实现） ========================
@@ -368,65 +396,77 @@ public abstract class AbstractOssStorageService implements OssStorageService {
     /**
      * 上传对象到存储。
      *
+     * @param bucket      目标存储桶
      * @param objectKey   对象键
      * @param input       文件内容输入流
      * @param contentType MIME 类型，可能为 {@code null}
      * @param metadata    自定义元数据（如原始文件名）
      * @return 上传结果
      */
-    protected abstract OssResult doPut(String objectKey, InputStream input, String contentType,
-                                       Map<String, String> metadata);
+    protected abstract OssResult doPut(String bucket, String objectKey, InputStream input,
+                                       String contentType, Map<String, String> metadata);
 
     /**
      * 获取对象元数据（不含对象内容）。
      *
+     * @param bucket    存储桶名称
      * @param objectKey 对象键
      * @return 对象元数据
      */
-    protected abstract OssObjectMeta doGetObjectMeta(String objectKey);
+    protected abstract OssObjectMeta doGetObjectMeta(String bucket, String objectKey);
 
     /**
      * 获取对象内容和元数据。
      *
+     * @param bucket    存储桶名称
      * @param objectKey 对象键
      * @return 包含输入流和元数据的对象，调用方必须关闭
      */
-    protected abstract OssObject doGet(String objectKey);
+    protected abstract OssObject doGet(String bucket, String objectKey);
 
     /**
      * 判断对象是否存在。
      *
+     * @param bucket    存储桶名称
      * @param objectKey 对象键
      * @return 存在返回 {@code true}
      */
-    protected abstract boolean doExists(String objectKey);
+    protected abstract boolean doExists(String bucket, String objectKey);
 
     /**
      * 删除单个对象。
      *
+     * @param bucket    存储桶名称
      * @param objectKey 对象键
      */
-    protected abstract void doDelete(String objectKey);
+    protected abstract void doDelete(String bucket, String objectKey);
 
     /**
      * 批量删除对象。
      *
+     * @param bucket     存储桶名称
      * @param objectKeys 对象键列表
      * @return 实际成功删除的数量
      */
-    protected abstract int doDeleteBatch(List<String> objectKeys);
+    protected abstract int doDeleteBatch(String bucket, List<String> objectKeys);
 
     /**
      * 复制对象。
+     * <p>
+     * 支持跨桶复制（如从暂存桶到主桶）。
+     * </p>
      *
-     * @param sourceKey 源对象键
-     * @param targetKey 目标对象键
+     * @param sourceBucket 源存储桶名称
+     * @param sourceKey    源对象键
+     * @param targetBucket 目标存储桶名称
+     * @param targetKey    目标对象键
      * @return 复制结果
      */
-    protected abstract OssResult doCopy(String sourceKey, String targetKey);
+    protected abstract OssResult doCopy(String sourceBucket, String sourceKey,
+                                        String targetBucket, String targetKey);
 
     /**
-     * 生成预签名上传 URL。
+     * 生成预签名上传 URL（主桶）。
      *
      * @param objectKey 对象键
      * @param expiry    有效期
@@ -435,6 +475,25 @@ public abstract class AbstractOssStorageService implements OssStorageService {
      */
     protected abstract PresignedUrl doPresignPut(String objectKey, Duration expiry,
                                                   Map<String, String> headers);
+
+    /**
+     * 生成预签名上传 URL（指定桶）。
+     * <p>
+     * 默认委托给 {@link #doPresignPut(String, Duration, Map)}，使用主桶。
+     * 子类如需支持暂存桶的预签名上传，应覆写此方法以支持指定桶名。
+     * </p>
+     *
+     * @param objectKey 对象键
+     * @param expiry    有效期
+     * @param headers   客户端必须携带的请求头
+     * @param bucket    目标存储桶名称
+     * @return 预签名 URL
+     */
+    protected PresignedUrl doPresignPut(String objectKey, Duration expiry,
+                                        Map<String, String> headers, String bucket) {
+        // 默认实现忽略 bucket 参数，子类可覆写以支持指定桶
+        return doPresignPut(objectKey, expiry, headers);
+    }
 
     /**
      * 生成预签名下载 URL。
@@ -454,27 +513,47 @@ public abstract class AbstractOssStorageService implements OssStorageService {
     protected abstract String doBuildUrl(String objectKey);
 
     /**
-     * 获取暂存存储桶名称。
-     * <p>
-     * 如果配置了独立的暂存桶则返回暂存桶名称，否则返回主存储桶名称。
-     * 子类在需要区分暂存操作的目标存储桶时调用此方法。
-     * </p>
-     *
-     * @return 暂存存储桶名称
-     */
-    protected abstract String doGetStagingBucket();
-
-    /**
      * 获取对象的自定义元数据（用户元数据）。
      * <p>
      * 用于暂存确认时读取存储在对象头中的基础路径等自定义信息。
      * </p>
      *
+     * @param bucket    存储桶名称
      * @param objectKey 对象键
-     * @return 用户元数据映射，键为元数据名称（不含 {@code x-amz-meta-} 前缀或含前缀，
-     *         取决于实现），无元数据时返回空 Map
+     * @return 用户元数据映射，键含 {@code x-amz-meta-} 前缀，无元数据时返回空 Map
      */
-    protected abstract Map<String, String> doGetUserMetadata(String objectKey);
+    protected abstract Map<String, String> doGetUserMetadata(String bucket, String objectKey);
+
+    /**
+     * 列举指定前缀下的过期对象并删除。
+     * <p>
+     * 用于清理过期暂存文件。由 {@link #purgeExpiredStages(Duration)} 调用。
+     * </p>
+     *
+     * @param bucket     存储桶名称
+     * @param prefix     列举前缀
+     * @param cutoff     过期截止时间，早于此时间的对象视为过期
+     * @return 实际清理的对象数量
+     */
+    protected abstract int doPurgeExpired(String bucket, String prefix, java.time.Instant cutoff);
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * 根据暂存策略确定扫描范围：
+     * <ul>
+     *   <li>DIRECTORY 模式：在主桶的暂存前缀下扫描</li>
+     *   <li>BUCKET 模式：在独立暂存桶中扫描全部对象</li>
+     * </ul>
+     * </p>
+     */
+    @Override
+    public int purgeExpiredStages(Duration olderThan) {
+        java.time.Instant cutoff = java.time.Instant.now().minus(olderThan);
+        String stagingBucket = resolveStagingBucket();
+        String scanPrefix = properties.getStaging().resolveScanPrefix();
+        return doPurgeExpired(stagingBucket, scanPrefix, cutoff);
+    }
 
     // ======================== 内部工具方法 ========================
 
