@@ -22,6 +22,7 @@
         <module>zerx-spring-cache</module>
         <module>zerx-spring-security</module>
         <module>zerx-spring-logging</module>
+        <module>zerx-spring-bom</module>
     </modules>
 
     <dependencies>
